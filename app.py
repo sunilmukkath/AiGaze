@@ -6,9 +6,11 @@
 
 import io
 import os
+import shutil
 import string
 import tempfile
 import base64
+import time
 
 import cv2
 import matplotlib
@@ -98,9 +100,7 @@ ET_BLUE    = "#5B8DD9"
 ET_GOLD    = "#F5A623"
 ET_GREEN   = "#44BB77"
 
-# Optional remote saliency inference endpoint (for DeepGaze/SALICON/ViT ensemble).
-SALIENCY_API_URL = os.getenv("SALIENCY_API_URL", "").strip()
-SALIENCY_REMOTE_TIMEOUT_SEC = int(os.getenv("SALIENCY_REMOTE_TIMEOUT_SEC", "45"))
+# Local DeepGaze-only inference options.
 SALIENCY_ENABLE_TTA = os.getenv("SALIENCY_ENABLE_TTA", "1").strip().lower() not in {"0", "false", "no"}
 
 # ── Custom CSS ───────────────────────────────────────────────
@@ -393,25 +393,157 @@ st.markdown(_CSS, unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════
 # DEEPGAZE SALIENCY ENGINE
 # Primary: DeepGaze IIE (deep learning, ~90% accuracy)
-# Fallback: Itti-Koch inspired (rule-based)
 # ══════════════════════════════════════════════════════════════
 
 @st.cache_resource(show_spinner=False)
 def _load_deepgaze_model():
     """Load DeepGaze IIE once and cache for the session. Downloads weights on first run."""
-    try:
-        # Use MPS on Apple Silicon if available, else CPU
-        if torch.backends.mps.is_available():
-            device = torch.device("mps")
-        elif torch.cuda.is_available():
-            device = torch.device("cuda")
-        else:
-            device = torch.device("cpu")
-        model = deepgaze_pytorch.DeepGazeIIE(pretrained=True).to(device)
-        model.eval()
-        return model, device, True
-    except Exception as e:
-        return None, None, False
+    # Streamlit/cloud-safe cache path for Torch model weights.
+    torch_home = os.path.join(tempfile.gettempdir(), "aigaze-torch-cache")
+    os.makedirs(torch_home, exist_ok=True)
+    os.environ.setdefault("TORCH_HOME", torch_home)
+    ckpt_dir = os.path.join(torch_home, "hub", "checkpoints")
+    os.makedirs(ckpt_dir, exist_ok=True)
+
+    # Use MPS on Apple Silicon if available, else CPU
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
+    def _download_atomic(url, dst_path, timeout=180):
+        if requests is None:
+            return False, "requests dependency unavailable"
+        tmp_path = f"{dst_path}.download"
+        try:
+            r = requests.get(url, stream=True, timeout=timeout)
+            if r.status_code != 200:
+                return False, f"HTTP {r.status_code} for {url}"
+            with open(tmp_path, "wb") as fh:
+                for chunk in r.iter_content(chunk_size=1024 * 512):
+                    if not chunk:
+                        continue
+                    fh.write(chunk)
+            if os.path.getsize(tmp_path) < 1024 * 1024:
+                return False, f"Downloaded file too small: {tmp_path}"
+            os.replace(tmp_path, dst_path)
+            return True, ""
+        except Exception as e:
+            return False, str(e)
+        finally:
+            try:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    def _url_to_filename(url):
+        name = url.split("?")[0].rstrip("/").split("/")[-1]
+        return name or "checkpoint.pth"
+
+    def _acquire_lock(lock_path, timeout_sec=240.0, poll_sec=0.25, stale_sec=300.0):
+        start = time.time()
+        while True:
+            try:
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                payload = f"{os.getpid()}|{time.time():.6f}"
+                os.write(fd, payload.encode("ascii", errors="ignore"))
+                return fd
+            except FileExistsError:
+                # Recover from stale locks left by crashed workers.
+                try:
+                    age = time.time() - os.path.getmtime(lock_path)
+                    if age > stale_sec:
+                        os.unlink(lock_path)
+                        continue
+                except OSError:
+                    # If lock disappeared between checks, retry immediately.
+                    continue
+                if time.time() - start > timeout_sec:
+                    raise TimeoutError(
+                        f"Timed out waiting for checkpoint lock: {os.path.basename(lock_path)}. "
+                        "Another worker may still be downloading checkpoints."
+                    )
+                time.sleep(poll_sec)
+
+    def _release_lock(fd, lock_path):
+        try:
+            os.close(fd)
+        except Exception:
+            pass
+        try:
+            if os.path.exists(lock_path):
+                os.unlink(lock_path)
+        except Exception:
+            pass
+
+    def _robust_load_url(url, map_location=None, progress=True, **kwargs):
+        del progress, kwargs
+        filename = _url_to_filename(url)
+        dst_path = os.path.join(ckpt_dir, filename)
+        file_lock = f"{dst_path}.lock"
+        lock_fd = None
+        try:
+            lock_fd = _acquire_lock(file_lock)
+            for attempt in range(1, 5):
+                # Happy path: existing file
+                if os.path.exists(dst_path):
+                    try:
+                        if os.path.getsize(dst_path) >= 1024 * 1024:
+                            return torch.load(dst_path, map_location=map_location)
+                    except Exception:
+                        try:
+                            os.unlink(dst_path)
+                        except OSError:
+                            pass
+                ok, err = _download_atomic(url, dst_path)
+                if ok:
+                    try:
+                        return torch.load(dst_path, map_location=map_location)
+                    except Exception as e:
+                        err = str(e)
+                # clear broken file and retry with backoff
+                try:
+                    if os.path.exists(dst_path):
+                        os.unlink(dst_path)
+                except OSError:
+                    pass
+                if attempt < 4:
+                    time.sleep(1.1 * attempt)
+                    continue
+                raise RuntimeError(f"Failed to download/load checkpoint {filename}: {err}")
+        finally:
+            if lock_fd is not None:
+                _release_lock(lock_fd, file_lock)
+
+    def _construct():
+        # Monkey-patch both model_zoo and torch.hub URL loading for robust checkpoint fetch.
+        orig_mz = torch.utils.model_zoo.load_url
+        orig_hub = torch.hub.load_state_dict_from_url
+        torch.utils.model_zoo.load_url = _robust_load_url
+        torch.hub.load_state_dict_from_url = _robust_load_url
+        try:
+            model = deepgaze_pytorch.DeepGazeIIE(pretrained=True).to(device)
+            model.eval()
+            return model
+        finally:
+            torch.utils.model_zoo.load_url = orig_mz
+            torch.hub.load_state_dict_from_url = orig_hub
+
+    last_err = ""
+    for attempt in range(1, 4):
+        try:
+            model = _construct()
+            return model, device, True, ""
+        except Exception as e:
+            last_err = str(e)
+            if attempt < 3:
+                time.sleep(1.2 * attempt)
+                continue
+            break
+    return None, None, False, last_err
 
 
 def _norm(arr):
@@ -419,27 +551,10 @@ def _norm(arr):
     return np.zeros_like(arr) if mx - mn < 1e-8 else (arr - mn) / (mx - mn)
 
 
-def _decode_saliency_blob(blob, target_hw):
-    """Decode base64/bytes saliency image into normalized 2D map."""
-    H, W = target_hw
-    if blob is None:
-        return None
-    try:
-        if isinstance(blob, str):
-            raw = base64.b64decode(blob)
-        elif isinstance(blob, bytes):
-            raw = blob
-        else:
-            return None
-        arr = np.frombuffer(raw, dtype=np.uint8)
-        im = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
-        if im is None:
-            return None
-        if im.shape[:2] != (H, W):
-            im = cv2.resize(im, (W, H), interpolation=cv2.INTER_LINEAR)
-        return _norm(im.astype(np.float32))
-    except Exception:
-        return None
+def _remote_ensemble_saliency(img):
+    """Optional remote ensemble hook; returns None when unused."""
+    del img
+    return None
 
 
 def _map_correlation(a, b):
@@ -537,131 +652,11 @@ def _classify_scene_type(img):
 
 
 SCENE_FUSION_PRESETS = {
-    "hero": {"deepgaze": 0.66, "salicon": 0.22, "vit": 0.12},
-    "product": {"deepgaze": 0.44, "salicon": 0.33, "vit": 0.23},
-    "social_busy": {"deepgaze": 0.34, "salicon": 0.24, "vit": 0.42},
-    "editorial": {"deepgaze": 0.50, "salicon": 0.30, "vit": 0.20},
+    "hero": {"deepgaze": 1.0},
+    "product": {"deepgaze": 1.0},
+    "social_busy": {"deepgaze": 1.0},
+    "editorial": {"deepgaze": 1.0},
 }
-
-
-def _adaptive_remote_weights(img, available, fallback):
-    """Scene-aware weight adapter for remote DeepGaze/SALICON/ViT maps."""
-    available = set(available)
-    if not available:
-        return {}, {"scene_type": "editorial", "complexity": 0.0}
-
-    scene_meta = _classify_scene_type(img)
-    scene = scene_meta.get("scene_type", "editorial")
-    complexity = float(scene_meta.get("complexity", 0.0))
-    preset = dict(SCENE_FUSION_PRESETS.get(scene, SCENE_FUSION_PRESETS["editorial"]))
-    # Add mild complexity adaptation on top of scene preset.
-    base = {
-        "deepgaze": preset["deepgaze"] - 0.05 * complexity,
-        "salicon": preset["salicon"] + 0.02 * complexity,
-        "vit": preset["vit"] + 0.03 * complexity,
-    }
-
-    merged = {}
-    for k in ("deepgaze", "salicon", "vit"):
-        provider = float(fallback.get(k, base[k])) if isinstance(fallback, dict) else base[k]
-        merged[k] = 0.55 * base[k] + 0.45 * provider
-
-    merged = {k: max(v, 0.0) for k, v in merged.items() if k in available}
-    total = sum(merged.values()) + 1e-8
-    return {k: v / total for k, v in merged.items()}, scene_meta
-
-
-def _remote_ensemble_saliency(img):
-    """
-    Optional high-accuracy remote inference path.
-    Expected response keys (any subset):
-      - saliency_map (single)
-      - deepgaze_map, salicon_map, vit_map (ensemble components)
-      - weights: {"deepgaze":0.55,"salicon":0.30,"vit":0.15}
-    """
-    if not SALIENCY_API_URL or requests is None:
-        return None
-    H, W = img.shape[:2]
-    ok, buf = cv2.imencode(".jpg", cv2.cvtColor(img, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 92])
-    if not ok:
-        return None
-
-    try:
-        resp = requests.post(
-            SALIENCY_API_URL,
-            files={"image": ("image.jpg", buf.tobytes(), "image/jpeg")},
-            data={"models": "deepgaze,salicon,vit"},
-            timeout=SALIENCY_REMOTE_TIMEOUT_SEC,
-        )
-        if resp.status_code != 200:
-            return None
-        payload = resp.json()
-    except Exception:
-        return None
-
-    # Single-map mode
-    if "saliency_map" in payload:
-        sm = _decode_saliency_blob(payload.get("saliency_map"), (H, W))
-        if sm is not None:
-            scene_meta = _classify_scene_type(img)
-            return sm, {
-                "face_found": False,
-                "engine": payload.get("model_used", "Remote Saliency"),
-                "confidence": _saliency_confidence_score(sm),
-                "scene_type": scene_meta.get("scene_type", "editorial"),
-                "complexity": scene_meta.get("complexity", 0.0),
-            }
-
-    # Ensemble mode
-    dg = _decode_saliency_blob(payload.get("deepgaze_map"), (H, W))
-    sc = _decode_saliency_blob(payload.get("salicon_map"), (H, W))
-    vt = _decode_saliency_blob(payload.get("vit_map"), (H, W))
-    if dg is None and sc is None and vt is None:
-        return None
-
-    w = payload.get("weights", {}) if isinstance(payload.get("weights"), dict) else {}
-    fallback = {
-        "deepgaze": float(w.get("deepgaze", 0.55)),
-        "salicon": float(w.get("salicon", 0.30)),
-        "vit": float(w.get("vit", 0.15)),
-    }
-
-    maps = []
-    names = []
-    if dg is not None:
-        maps.append(dg); names.append("deepgaze")
-    if sc is not None:
-        maps.append(sc); names.append("salicon")
-    if vt is not None:
-        maps.append(vt); names.append("vit")
-    if not maps:
-        return None
-
-    adapted, scene_meta = _adaptive_remote_weights(img, names, fallback)
-    weights = [float(adapted.get(name, 0.0)) for name in names]
-    total_w = sum(weights) if sum(weights) > 1e-8 else float(len(weights))
-    sal = np.zeros((H, W), np.float32)
-    for m, ww in zip(maps, weights):
-        sal += m * (ww / total_w)
-    sal = _norm(gaussian_filter(sal, sigma=max(H, W) / 120))
-    sal = _sharpen_sal(sal)
-
-    agreement = None
-    if len(maps) >= 2:
-        pairwise = []
-        for i in range(len(maps)):
-            for j in range(i + 1, len(maps)):
-                pairwise.append(_map_correlation(maps[i], maps[j]))
-        agreement = float(np.mean(pairwise)) if pairwise else None
-
-    return sal, {
-        "face_found": False,
-        "engine": "Remote Ensemble (DeepGaze+SALICON+ViT)",
-        "agreement": round(float(agreement), 3) if agreement is not None else None,
-        "confidence": _saliency_confidence_score(sal, agreement=agreement),
-        "scene_type": scene_meta.get("scene_type", "editorial"),
-        "complexity": scene_meta.get("complexity", 0.0),
-    }
 
 
 def _center_bias(H, W):
@@ -816,64 +811,112 @@ def _sharpen_sal(sal):
 def compute_saliency(img, enable_tta=None):
     """
     Returns (sal_map [0,1], meta_dict).
-    DeepGaze-only inference path (no non-DeepGaze fallback).
+    Primary DeepGaze inference with robust fallback chain.
     """
     H, W = img.shape[:2]
     tta_enabled = SALIENCY_ENABLE_TTA if enable_tta is None else bool(enable_tta)
     scene_meta = _classify_scene_type(img)
+    fallback_reason = ""
 
-    if not DEEPGAZE_AVAILABLE:
-        raise RuntimeError("DeepGaze dependencies are unavailable. Install torch + deepgaze-pytorch.")
+    # 1) Remote ensemble (if configured) - most reliable in cloud.
+    remote = _remote_ensemble_saliency(img)
+    if remote is not None:
+        sal, meta = remote
+        meta = dict(meta or {})
+        meta.setdefault("scene_type", scene_meta.get("scene_type", "editorial"))
+        return sal, meta
 
-    model, device, ok = _load_deepgaze_model()
-    if not ok or model is None or device is None:
-        raise RuntimeError("DeepGaze model failed to load.")
+    # 2) Local DeepGaze path.
+    if DEEPGAZE_AVAILABLE:
+        model, device, ok, load_err = _load_deepgaze_model()
+        if ok and model is not None and device is not None:
+            try:
+                # Run at full res up to 1024px — more detail than 768
+                max_dim = 1024
+                scale   = min(max_dim / H, max_dim / W, 1.0)
+                rH, rW  = int(H * scale), int(W * scale)
+                img_r   = cv2.resize(img, (rW, rH), interpolation=cv2.INTER_AREA)
 
-    try:
-        # Run at full res up to 1024px — more detail than 768
-        max_dim = 1024
-        scale   = min(max_dim / H, max_dim / W, 1.0)
-        rH, rW  = int(H * scale), int(W * scale)
-        img_r   = cv2.resize(img, (rW, rH), interpolation=cv2.INTER_AREA)
+                sal = _deepgaze_forward(model, device, img_r)
 
-        sal = _deepgaze_forward(model, device, img_r)
+                # Multi-scale blend improves stability on very large creatives.
+                small_scale = min(768 / H, 768 / W, 1.0)
+                if small_scale < scale:
+                    sH, sW = int(H * small_scale), int(W * small_scale)
+                    img_s = cv2.resize(img, (sW, sH), interpolation=cv2.INTER_AREA)
+                    sal_s = _deepgaze_forward(model, device, img_s)
+                    sal_s = cv2.resize(sal_s, (rW, rH), interpolation=cv2.INTER_LINEAR)
+                    sal = _norm(0.72 * sal + 0.28 * sal_s)
 
-        # Multi-scale blend improves stability on very large creatives.
-        small_scale = min(768 / H, 768 / W, 1.0)
-        if small_scale < scale:
-            sH, sW = int(H * small_scale), int(W * small_scale)
-            img_s = cv2.resize(img, (sW, sH), interpolation=cv2.INTER_AREA)
-            sal_s = _deepgaze_forward(model, device, img_s)
-            sal_s = cv2.resize(sal_s, (rW, rH), interpolation=cv2.INTER_LINEAR)
-            sal = _norm(0.72 * sal + 0.28 * sal_s)
+                # Test-time augmentation reduces left/right directional artifacts.
+                if tta_enabled:
+                    sal_flip = _deepgaze_forward(model, device, img_r[:, ::-1, :])[:, ::-1]
+                    sal = _norm(0.78 * sal + 0.22 * sal_flip)
 
-        # Test-time augmentation reduces left/right directional artifacts.
-        if tta_enabled:
-            sal_flip = _deepgaze_forward(model, device, img_r[:, ::-1, :])[:, ::-1]
-            sal = _norm(0.78 * sal + 0.22 * sal_flip)
+                if scale < 1.0:
+                    sal = cv2.resize(sal, (W, H), interpolation=cv2.INTER_LINEAR)
 
-        if scale < 1.0:
-            sal = cv2.resize(sal, (W, H), interpolation=cv2.INTER_LINEAR)
+                # Lighter smoothing preserves spatial sharpness
+                sal = gaussian_filter(sal, sigma=max(H, W) / 110)
+                sal = _norm(sal)
 
-        # Lighter smoothing preserves spatial sharpness
-        sal = gaussian_filter(sal, sigma=max(H, W) / 110)
-        sal = _norm(sal)
+                # AI priors adapted to scene complexity.
+                sal, prior_meta = _apply_semantic_priors(img, sal)
 
-        # AI priors adapted to scene complexity.
-        sal, prior_meta = _apply_semantic_priors(img, sal)
+                # Sharpen: percentile clip + gamma to make hot-spots pop
+                sal = _sharpen_sal(sal)
 
-        # Sharpen: percentile clip + gamma to make hot-spots pop
-        sal = _sharpen_sal(sal)
+                return sal, {
+                    "face_found": prior_meta["face_found"] or prior_meta["person_found"],
+                    "engine": "DeepGaze IIE+",
+                    "confidence": _saliency_confidence_score(sal),
+                    "complexity": prior_meta["complexity"],
+                    "scene_type": scene_meta.get("scene_type", "editorial"),
+                }
+            except Exception as exc:
+                fallback_reason = f"DeepGaze inference failed: {exc}"
+        else:
+            fallback_reason = f"DeepGaze load failed: {load_err}" if load_err else "DeepGaze unavailable"
+    else:
+        fallback_reason = "DeepGaze dependencies unavailable"
 
-        return sal, {
-            "face_found": prior_meta["face_found"] or prior_meta["person_found"],
-            "engine": "DeepGaze IIE+",
-            "confidence": _saliency_confidence_score(sal),
-            "complexity": prior_meta["complexity"],
-            "scene_type": scene_meta.get("scene_type", "editorial"),
-        }
-    except Exception as exc:
-        raise RuntimeError(f"DeepGaze inference failed: {exc}") from exc
+    # 3) Local heuristic fallback to keep app operational.
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    intensity_maps = []
+    for s1, s2 in [(1, 8), (2, 16), (3, 28)]:
+        d = np.abs(
+            gaussian_filter(gray.astype(np.float32) / 255, s1) -
+            gaussian_filter(gray.astype(np.float32) / 255, s2)
+        )
+        intensity_maps.append(_norm(d))
+    intensity = _norm(sum(intensity_maps) / 3)
+
+    f = img.astype(np.float32) / 255
+    R, G, B = f[:, :, 0], f[:, :, 1], f[:, :, 2]
+    rg = np.abs(R - G) / (R + G + 1e-8)
+    by = np.abs(B - 0.5 * (R + G)) / (B + 0.5 * (R + G) + 1e-8)
+    color = _norm(gaussian_filter(_norm(rg + by), 5))
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
+    sat = _norm(gaussian_filter(hsv[:, :, 1] / 255.0, 4))
+
+    e1 = cv2.Canny(gray, 30, 90) / 255.0
+    e2 = cv2.Canny(gray, 60, 160) / 255.0
+    e3 = cv2.Canny(gray, 100, 220) / 255.0
+    edges = _norm(gaussian_filter(np.maximum(np.maximum(e1, e2), e3), 4))
+
+    sal = _norm(0.28 * intensity + 0.28 * color + 0.24 * sat + 0.20 * edges)
+    sal, prior_meta = _apply_semantic_priors(img, sal)
+    sal = gaussian_filter(sal, sigma=max(H, W) / 70)
+    sal = _sharpen_sal(sal)
+    return sal, {
+        "face_found": prior_meta["face_found"] or prior_meta["person_found"],
+        "engine": "Fallback Saliency",
+        "confidence": _saliency_confidence_score(sal),
+        "complexity": prior_meta["complexity"],
+        "scene_type": scene_meta.get("scene_type", "editorial"),
+        "fallback_reason": fallback_reason,
+    }
 
 
 def compute_saliency_high_confidence(img, target_confidence=85.0, enabled=False, strict_target=False, max_passes=5):
@@ -1998,6 +2041,11 @@ def main():
             )
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='color:#9aa2cf;font-size:0.78em;margin:2px 2px 10px;'>"
+        "Select an analysis screen below.</div>",
+        unsafe_allow_html=True,
+    )
 
     with st.container():
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
