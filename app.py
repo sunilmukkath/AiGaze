@@ -100,6 +100,8 @@ ET_GREEN   = "#44BB77"
 
 # Optional remote saliency inference endpoint (for DeepGaze/SALICON/ViT ensemble).
 SALIENCY_API_URL = os.getenv("SALIENCY_API_URL", "").strip()
+SALIENCY_REMOTE_TIMEOUT_SEC = int(os.getenv("SALIENCY_REMOTE_TIMEOUT_SEC", "45"))
+SALIENCY_ENABLE_TTA = os.getenv("SALIENCY_ENABLE_TTA", "1").strip().lower() not in {"0", "false", "no"}
 
 # ── Custom CSS ───────────────────────────────────────────────
 _CSS = """
@@ -438,6 +440,68 @@ def _decode_saliency_blob(blob, target_hw):
         return None
 
 
+def _map_correlation(a, b):
+    """Stable correlation score for two saliency maps."""
+    aa = a.astype(np.float32).reshape(-1)
+    bb = b.astype(np.float32).reshape(-1)
+    aa -= aa.mean()
+    bb -= bb.mean()
+    denom = float(np.linalg.norm(aa) * np.linalg.norm(bb)) + 1e-8
+    return float(np.clip(np.dot(aa, bb) / denom, -1.0, 1.0))
+
+
+def _saliency_confidence_score(sal_map, agreement=None):
+    """Confidence proxy (0-100): contrast + peak + concentration + agreement."""
+    sal = np.clip(sal_map.astype(np.float32), 0.0, 1.0)
+    flat = sal.reshape(-1)
+    if flat.size == 0:
+        return 0.0
+
+    peak = float(np.max(flat))
+    q50 = float(np.percentile(flat, 50))
+    q90 = float(np.percentile(flat, 90))
+    contrast = float(np.clip((q90 - q50) / max(q90, 1e-6), 0.0, 1.0))
+    concentration = float(np.mean(flat >= q90))
+    concentration_score = float(np.clip(1.0 - abs(concentration - 0.10) / 0.10, 0.0, 1.0))
+    agreement_score = float(np.clip((agreement + 1.0) / 2.0, 0.0, 1.0)) if agreement is not None else 0.5
+
+    score = (0.38 * contrast + 0.26 * peak + 0.18 * concentration_score + 0.18 * agreement_score) * 100.0
+    return round(float(np.clip(score, 0.0, 100.0)), 1)
+
+
+def _scene_complexity(img):
+    """Estimate visual clutter to adapt semantic prior strengths."""
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).astype(np.uint8)
+    e1 = cv2.Canny(gray, 45, 130)
+    e2 = cv2.Canny(gray, 80, 210)
+    edge_density = float(np.mean(np.maximum(e1, e2) > 0))
+    return float(np.clip((edge_density - 0.04) / 0.20, 0.0, 1.0))
+
+
+def _adaptive_remote_weights(img, available, fallback):
+    """Scene-aware weight adapter for remote DeepGaze/SALICON/ViT maps."""
+    available = set(available)
+    if not available:
+        return {}
+
+    complexity = _scene_complexity(img)
+    face_present = len(_detect_faces(img)) > 0
+    base = {
+        "deepgaze": 0.52 + (0.12 if face_present else 0.0) - 0.06 * complexity,
+        "salicon": 0.30 + 0.05 * complexity,
+        "vit": 0.18 + 0.05 * complexity,
+    }
+
+    merged = {}
+    for k in ("deepgaze", "salicon", "vit"):
+        provider = float(fallback.get(k, base[k])) if isinstance(fallback, dict) else base[k]
+        merged[k] = 0.55 * base[k] + 0.45 * provider
+
+    merged = {k: max(v, 0.0) for k, v in merged.items() if k in available}
+    total = sum(merged.values()) + 1e-8
+    return {k: v / total for k, v in merged.items()}
+
+
 def _remote_ensemble_saliency(img):
     """
     Optional high-accuracy remote inference path.
@@ -458,7 +522,7 @@ def _remote_ensemble_saliency(img):
             SALIENCY_API_URL,
             files={"image": ("image.jpg", buf.tobytes(), "image/jpeg")},
             data={"models": "deepgaze,salicon,vit"},
-            timeout=45,
+            timeout=SALIENCY_REMOTE_TIMEOUT_SEC,
         )
         if resp.status_code != 200:
             return None
@@ -470,7 +534,11 @@ def _remote_ensemble_saliency(img):
     if "saliency_map" in payload:
         sm = _decode_saliency_blob(payload.get("saliency_map"), (H, W))
         if sm is not None:
-            return sm, {"face_found": False, "engine": payload.get("model_used", "Remote Saliency")}
+            return sm, {
+                "face_found": False,
+                "engine": payload.get("model_used", "Remote Saliency"),
+                "confidence": _saliency_confidence_score(sm),
+            }
 
     # Ensemble mode
     dg = _decode_saliency_blob(payload.get("deepgaze_map"), (H, W))
@@ -480,28 +548,46 @@ def _remote_ensemble_saliency(img):
         return None
 
     w = payload.get("weights", {}) if isinstance(payload.get("weights"), dict) else {}
-    wd = float(w.get("deepgaze", 0.55))
-    ws = float(w.get("salicon", 0.30))
-    wv = float(w.get("vit", 0.15))
+    fallback = {
+        "deepgaze": float(w.get("deepgaze", 0.55)),
+        "salicon": float(w.get("salicon", 0.30)),
+        "vit": float(w.get("vit", 0.15)),
+    }
 
     maps = []
-    weights = []
+    names = []
     if dg is not None:
-        maps.append(dg); weights.append(max(wd, 0.0))
+        maps.append(dg); names.append("deepgaze")
     if sc is not None:
-        maps.append(sc); weights.append(max(ws, 0.0))
+        maps.append(sc); names.append("salicon")
     if vt is not None:
-        maps.append(vt); weights.append(max(wv, 0.0))
+        maps.append(vt); names.append("vit")
     if not maps:
         return None
 
+    adapted = _adaptive_remote_weights(img, names, fallback)
+    weights = [float(adapted.get(name, 0.0)) for name in names]
     total_w = sum(weights) if sum(weights) > 1e-8 else float(len(weights))
     sal = np.zeros((H, W), np.float32)
     for m, ww in zip(maps, weights):
         sal += m * (ww / total_w)
     sal = _norm(gaussian_filter(sal, sigma=max(H, W) / 120))
     sal = _sharpen_sal(sal)
-    return sal, {"face_found": False, "engine": "Remote Ensemble (DeepGaze+SALICON+ViT)"}
+
+    agreement = None
+    if len(maps) >= 2:
+        pairwise = []
+        for i in range(len(maps)):
+            for j in range(i + 1, len(maps)):
+                pairwise.append(_map_correlation(maps[i], maps[j]))
+        agreement = float(np.mean(pairwise)) if pairwise else None
+
+    return sal, {
+        "face_found": False,
+        "engine": "Remote Ensemble (DeepGaze+SALICON+ViT)",
+        "agreement": round(float(agreement), 3) if agreement is not None else None,
+        "confidence": _saliency_confidence_score(sal, agreement=agreement),
+    }
 
 
 def _center_bias(H, W):
@@ -612,6 +698,38 @@ def _person_object_boost(img, sal, H, W, person_weight=0.12):
     return sal, person_found
 
 
+def _apply_semantic_priors(img, sal):
+    """Adapt face/object prior strengths based on scene complexity."""
+    H, W = sal.shape
+    complexity = _scene_complexity(img)
+    face_weight = float(np.clip(0.12 + 0.08 * (1.0 - complexity), 0.08, 0.24))
+    person_weight = float(np.clip(0.08 + 0.08 * (1.0 - complexity), 0.06, 0.18))
+
+    sal, face_found = _face_boost(img, sal, H, W, weight=face_weight)
+    sal, person_found = _person_object_boost(img, sal, H, W, person_weight=person_weight)
+    return sal, {
+        "face_found": face_found,
+        "person_found": person_found,
+        "complexity": round(complexity, 3),
+    }
+
+
+def _deepgaze_forward(model, device, img_rgb):
+    """Run DeepGaze once and return normalized saliency map."""
+    H, W = img_rgb.shape[:2]
+    img_t = torch.tensor(
+        img_rgb.transpose(2, 0, 1)[np.newaxis], dtype=torch.float32
+    ).to(device)
+    cb_t = torch.tensor(
+        _center_bias(H, W)[np.newaxis, np.newaxis]
+    ).to(device)
+    with torch.no_grad():
+        log_den = model(img_t, cb_t)
+    sal = log_den.squeeze().cpu().numpy()
+    sal = np.exp(sal - sal.max())
+    return _norm(sal)
+
+
 def _sharpen_sal(sal):
     """Balanced contrast preset: keep dark regions clearer, hotspots readable."""
     p2, p98 = np.percentile(sal, 2), np.percentile(sal, 98)
@@ -621,12 +739,13 @@ def _sharpen_sal(sal):
     return _norm(sal)
 
 
-def compute_saliency(img):
+def compute_saliency(img, enable_tta=None):
     """
     Returns (sal_map [0,1], meta_dict).
     Uses DeepGaze IIE when available, Itti-Koch fallback otherwise.
     """
     H, W = img.shape[:2]
+    tta_enabled = SALIENCY_ENABLE_TTA if enable_tta is None else bool(enable_tta)
 
     # ── Remote ensemble path (DeepGaze/SALICON/ViT) ─────────
     remote = _remote_ensemble_saliency(img)
@@ -644,35 +763,41 @@ def compute_saliency(img):
                 rH, rW  = int(H * scale), int(W * scale)
                 img_r   = cv2.resize(img, (rW, rH), interpolation=cv2.INTER_AREA)
 
-                img_t = torch.tensor(
-                    img_r.transpose(2, 0, 1)[np.newaxis], dtype=torch.float32
-                ).to(device)
-                cb_t  = torch.tensor(
-                    _center_bias(rH, rW)[np.newaxis, np.newaxis]
-                ).to(device)
+                sal = _deepgaze_forward(model, device, img_r)
 
-                with torch.no_grad():
-                    log_den = model(img_t, cb_t)
+                # Multi-scale blend improves stability on very large creatives.
+                small_scale = min(768 / H, 768 / W, 1.0)
+                if small_scale < scale:
+                    sH, sW = int(H * small_scale), int(W * small_scale)
+                    img_s = cv2.resize(img, (sW, sH), interpolation=cv2.INTER_AREA)
+                    sal_s = _deepgaze_forward(model, device, img_s)
+                    sal_s = cv2.resize(sal_s, (rW, rH), interpolation=cv2.INTER_LINEAR)
+                    sal = _norm(0.72 * sal + 0.28 * sal_s)
 
-                sal = log_den.squeeze().cpu().numpy()
-                sal = np.exp(sal - sal.max())
+                # Test-time augmentation reduces left/right directional artifacts.
+                if tta_enabled:
+                    sal_flip = _deepgaze_forward(model, device, img_r[:, ::-1, :])[:, ::-1]
+                    sal = _norm(0.78 * sal + 0.22 * sal_flip)
 
                 if scale < 1.0:
-                    from scipy.ndimage import zoom
-                    sal = zoom(sal, (H / rH, W / rW), order=1)
+                    sal = cv2.resize(sal, (W, H), interpolation=cv2.INTER_LINEAR)
 
                 # Lighter smoothing preserves spatial sharpness
                 sal = gaussian_filter(sal, sigma=max(H, W) / 110)
                 sal = _norm(sal)
 
-                # AI priors: stronger face detection + optional person/object prior.
-                sal, face_found = _face_boost(img, sal, H, W, weight=0.16)
-                sal, person_found = _person_object_boost(img, sal, H, W, person_weight=0.10)
+                # AI priors adapted to scene complexity.
+                sal, prior_meta = _apply_semantic_priors(img, sal)
 
                 # Sharpen: percentile clip + gamma to make hot-spots pop
                 sal = _sharpen_sal(sal)
 
-                return sal, {"face_found": face_found or person_found, "engine": "DeepGaze IIE+"}
+                return sal, {
+                    "face_found": prior_meta["face_found"] or prior_meta["person_found"],
+                    "engine": "DeepGaze IIE+",
+                    "confidence": _saliency_confidence_score(sal),
+                    "complexity": prior_meta["complexity"],
+                }
             except Exception:
                 pass   # fall through to fallback
 
@@ -721,11 +846,68 @@ def compute_saliency(img):
     else:
         sal = 0.26*intensity + 0.28*color + 0.24*sat + 0.22*edges
 
-    # Optional person/object prior improves fallback quality on ads/people visuals.
-    sal, person_found = _person_object_boost(img, sal, H, W, person_weight=0.12)
+    # Adaptive semantic priors improve fallback quality on people/object creatives.
+    sal, prior_meta = _apply_semantic_priors(img, sal)
     sal = gaussian_filter(sal, sigma=max(H, W) / 65)
     sal = _sharpen_sal(sal)
-    return sal, {"face_found": face_found or person_found, "engine": "Itti-Koch+"}
+    return sal, {
+        "face_found": face_found or prior_meta["person_found"],
+        "engine": "Itti-Koch+",
+        "confidence": _saliency_confidence_score(sal),
+        "complexity": prior_meta["complexity"],
+    }
+
+
+def compute_saliency_high_confidence(img, target_confidence=90.0, enabled=False):
+    """
+    High-confidence mode:
+    - runs baseline saliency
+    - optionally tries extra inference variants
+    - picks the highest-confidence candidate
+    """
+    base_sal, base_comp = compute_saliency(img, enable_tta=SALIENCY_ENABLE_TTA)
+    base_comp = dict(base_comp or {})
+    base_conf = float(base_comp.get("confidence", _saliency_confidence_score(base_sal)))
+    base_comp["confidence"] = round(base_conf, 1)
+    base_comp["mode"] = "Standard"
+    base_comp["target_confidence"] = float(target_confidence)
+
+    if not enabled or base_conf >= float(target_confidence):
+        return base_sal, base_comp
+
+    candidates = [(base_sal, base_comp)]
+
+    # Candidate 2: toggle TTA behavior.
+    try:
+        alt_sal, alt_comp = compute_saliency(img, enable_tta=not SALIENCY_ENABLE_TTA)
+        alt_comp = dict(alt_comp or {})
+        alt_comp["confidence"] = round(float(alt_comp.get("confidence", _saliency_confidence_score(alt_sal))), 1)
+        alt_comp["mode"] = "High-Confidence"
+        candidates.append((alt_sal, alt_comp))
+    except Exception:
+        pass
+
+    # Candidate 3: mirror-consensus blend to reduce directional artifacts.
+    try:
+        flip_sal, _ = compute_saliency(img[:, ::-1, :], enable_tta=False)
+        flip_sal = flip_sal[:, ::-1]
+        agreement = _map_correlation(base_sal, flip_sal)
+        blend_sal = _sharpen_sal(_norm(0.70 * base_sal + 0.30 * flip_sal))
+        blend_comp = dict(base_comp)
+        blend_comp["engine"] = f"{base_comp.get('engine', 'Model')} + Mirror Consensus"
+        blend_comp["agreement"] = round(float(agreement), 3)
+        blend_comp["confidence"] = _saliency_confidence_score(blend_sal, agreement=agreement)
+        blend_comp["mode"] = "High-Confidence"
+        candidates.append((blend_sal, blend_comp))
+    except Exception:
+        pass
+
+    best_sal, best_comp = max(candidates, key=lambda item: float(item[1].get("confidence", 0.0)))
+    best_comp = dict(best_comp)
+    best_comp["mode"] = "High-Confidence"
+    best_comp["target_confidence"] = float(target_confidence)
+    best_comp["passes"] = len(candidates)
+    return best_sal, best_comp
 
 
 # ══════════════════════════════════════════════════════════════
@@ -912,6 +1094,28 @@ def get_gaze_sequence(sal_map, n=5):
         canvas = canvas * (1 - suppress)
 
     return points
+
+
+def estimate_fixation_seconds(gaze_points, total_seconds=3.0):
+    """
+    Allocate a 3-second viewing window across predicted fixation points.
+    Earlier points get slightly more dwell time via rank decay.
+    """
+    if not gaze_points:
+        return []
+
+    probs = np.array([max(float(p[2]), 1.0) for p in gaze_points], dtype=np.float32)
+    ranks = np.arange(len(gaze_points), dtype=np.float32)
+    rank_decay = np.exp(-0.35 * ranks)
+    weights = probs * rank_decay
+    weights = weights / (weights.sum() + 1e-8)
+
+    secs = float(total_seconds) * weights
+    # Prevent unrealistically tiny dwell times when 4-5 points are present.
+    min_sec = 0.22
+    secs = np.maximum(secs, min_sec)
+    secs = float(total_seconds) * (secs / (secs.sum() + 1e-8))
+    return [float(s) for s in secs]
 
 
 def draw_gaze_sequence(img, points):
@@ -1303,7 +1507,7 @@ def export_pdf(original, heatmap_img, hotspot_img, gaze_img,
     # Cover
     clean_page()
     heading("AI GAZE REPORT", "Predictive visual attention analysis")
-    body("Generated by Elastic Tree AI Gaze. This report summarizes expected first-glance attention in the first 3-5 seconds.")
+    body("Generated by Elastic Tree AI Gaze. This report summarizes expected first-glance attention in the first 3 seconds.")
     image_block(orig_p, y=46, h=140)
 
     # Heat map
@@ -1328,10 +1532,12 @@ def export_pdf(original, heatmap_img, hotspot_img, gaze_img,
     clean_page()
     heading("GAZE SEQUENCE", "Predicted first viewing order")
     seq_lines = []
+    fix_secs = estimate_fixation_seconds(gaze_points, total_seconds=3.0)
     for i, (x, y, prob) in enumerate(gaze_points):
         tier = "HIGH" if prob >= 70 else "MEDIUM" if prob >= 40 else "LOW"
-        seq_lines.append(f"Point {i+1}: ({x}, {y})  -  {prob:.0f}% ({tier})")
-    body("Top 5 predicted fixation points in the first 3-5 seconds:\n" + "\n".join(seq_lines))
+        sec = fix_secs[i] if i < len(fix_secs) else 0.0
+        seq_lines.append(f"Point {i+1}: ({x}, {y})  -  {prob:.0f}% ({tier})  -  {sec:.2f}s")
+    body("Top 5 predicted fixation points in a 3-second viewing window:\n" + "\n".join(seq_lines))
     image_block(gaze_p, y=70, h=118)
 
     # AOI (optional)
@@ -1471,7 +1677,7 @@ def _landing_page():
         # Tagline
         "<div style='position:relative;z-index:1;font-size:0.9em;color:#8888b0;"
         "max-width:500px;margin:0 auto;line-height:1.5;'>"
-        "See what gets attention in the first 3&#8211;5 seconds before launch.</div>"
+        "See what gets attention in the first 3 seconds.</div>"
         "</div>",
         unsafe_allow_html=True,
     )
@@ -1611,6 +1817,8 @@ def main():
             "</div>",
             unsafe_allow_html=True,
         )
+        high_conf_mode = True
+        st.caption("High-Confidence Mode is always enabled.")
 
     if not uploaded:
         st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
@@ -1625,7 +1833,7 @@ def main():
                 "font-weight:700;color:#f0f0fa;letter-spacing:-0.3px;margin-bottom:8px;'>"
                 "Upload an Image to Analyse</div>"
                 "<div style='color:#8888a8;font-size:0.86em;margin-bottom:26px;"
-                "line-height:1.65;'>Predicts where people look in the first 3&#8211;5 seconds</div>"
+                "line-height:1.65;'>Predicts where people look in the first 3 seconds</div>"
                 "<div style='display:flex;justify-content:center;flex-wrap:wrap;gap:6px;'>"
                 "<span class='feature-chip'>Heat Map</span>"
                 "<span class='feature-chip'>Hot Spot</span>"
@@ -1650,10 +1858,15 @@ def main():
         engine_label = "Remote Ensemble"
     else:
         engine_label = "DeepGaze IIE" if DEEPGAZE_AVAILABLE else "Itti-Koch"
-    with st.spinner(f"Running {engine_label} analysis…"):
+    run_label = f"{engine_label} High-Confidence analysis" if high_conf_mode else f"{engine_label} analysis"
+    with st.spinner(f"Running {run_label}…"):
         if DEEPGAZE_AVAILABLE:
             _load_deepgaze_model()
-        sal_map, components = compute_saliency(img_np)
+        sal_map, components = compute_saliency_high_confidence(
+            img_np,
+            target_confidence=90.0,
+            enabled=high_conf_mode,
+        )
         engine_label = components.get("engine", engine_label)
         heatmap_img  = generate_heatmap(img_np, sal_map)
         hotspot_img  = generate_hotspot(img_np, sal_map)
@@ -1677,9 +1890,11 @@ def main():
     metric_items = [
         ("Peak Attention", f"{peak_pct}%", tier_color),
         ("Clarity Score", f"{clarity['score']:.1f}", "#F5A623"),
+        ("Model Confidence", f"{float(components.get('confidence', 0.0)):.1f}%", "#8fd0ff"),
+        ("Mode", components.get("mode", "Standard"), "#9B7BFF"),
         ("Face Pull", f"{face_pull['share']:.1f}%", "#3CBFBF"),
         ("Distraction", f"{balance['distraction']:.1f}%", "#F08A8A"),
-        ("Faces", "Yes" if components["face_found"] else "No", "#44BB77" if components["face_found"] else "#8888aa"),
+        ("Faces", "Yes" if components.get("face_found") else "No", "#44BB77" if components.get("face_found") else "#8888aa"),
         ("Size", f"{W}×{H}", "#5B8DD9"),
     ]
     mcols = st.columns(len(metric_items))
@@ -1697,15 +1912,15 @@ def main():
 
     with st.container():
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-            "01 Heat Map",
-            "02 Hot Spot",
-            "03 Gaze Path",
-            "04 Clarity",
-            "05 Top Elements",
-            "06 Face Pull",
-            "07 Balance",
-            "08 Compare",
-            "09 Report",
+            "Heat Map",
+            "Hot Spot",
+            "Gaze Path",
+            "Clarity",
+            "Top Elements",
+            "Face Pull",
+            "Balance",
+            "Compare",
+            "Report",
         ])
 
         # ── TAB 1 — HEATMAP ───────────────────────────────────
@@ -1732,7 +1947,7 @@ def main():
                 st.markdown(
                     "<div class='action-point'><strong>Action Point &nbsp;—</strong> "
                     "The hottest colours (red &rarr; orange &rarr; yellow) should cover the "
-                    "elements you want noticed in the first 3&#8211;5 seconds. "
+                    "elements you want noticed in the first 3 seconds. "
                     "Cold/transparent areas will likely be missed on first glance.</div>",
                     unsafe_allow_html=True,
                 )
@@ -1821,11 +2036,12 @@ def main():
         # ── TAB 3 — GAZE SEQUENCE ─────────────────────────────
         with tab3:
             img_col, info_col = st.columns([3, 1])
+            fixation_secs = estimate_fixation_seconds(gaze_points, total_seconds=3.0)
 
             with img_col:
                 st.markdown(
                     "<p class='section-title'>Gaze Sequence</p>"
-                    "<p class='section-sub'>Top 5 predicted fixation points in the first 3&#8211;5 seconds</p>",
+                    "<p class='section-sub'>Top 5 predicted fixation points in a 3-second viewing window</p>",
                     unsafe_allow_html=True,
                 )
                 st.image(gaze_img, width="stretch")
@@ -1854,6 +2070,7 @@ def main():
                     c    = hex_colors[i % len(hex_colors)]
                     tier = "HIGH" if prob >= 70 else "MEDIUM" if prob >= 40 else "LOW"
                     tcls = "tier-high" if prob >= 70 else "tier-medium" if prob >= 40 else "tier-low"
+                    dwell = fixation_secs[i] if i < len(fixation_secs) else 0.0
                     st.markdown(
                         f"<div class='gaze-card' style='border-left:3px solid {c};'>"
                         f"<div style='display:flex;justify-content:space-between;"
@@ -1863,6 +2080,8 @@ def main():
                         f"<span class='{tcls}'>{tier}</span></div>"
                         f"<div style='font-size:2em;font-weight:900;color:#fff;"
                         f"line-height:1;'>{prob:.0f}%</div>"
+                        f"<div style='color:#8e94bc;font-size:0.76em;margin-top:2px;'>"
+                        f"Fixation: {dwell:.2f}s</div>"
                         f"<div style='color:#7070a0;font-size:0.72em;margin-top:4px;'>"
                         f"x&thinsp;{x} &nbsp; y&thinsp;{y}</div>"
                         f"</div>",
@@ -2008,7 +2227,11 @@ def main():
             )
             if variant_file:
                 img_b = np.array(Image.open(variant_file).convert("RGB"))
-                sal_b, comp_b = compute_saliency(img_b)
+                sal_b, comp_b = compute_saliency_high_confidence(
+                    img_b,
+                    target_confidence=90.0,
+                    enabled=high_conf_mode,
+                )
                 heat_b = generate_heatmap(img_b, sal_b)
                 clarity_b = compute_clarity_score(sal_b)
                 face_b = compute_face_pull(img_b, sal_b)
