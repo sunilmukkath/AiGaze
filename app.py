@@ -126,39 +126,46 @@ html, body, .stApp {
 
 /* ── Tabs — underline style ── */
 .stTabs [data-baseweb="tab-list"] {
-    background: rgba(255,255,255,0.02) !important;
-    border: 1px solid rgba(255,255,255,0.08) !important;
-    border-radius: 14px !important;
-    padding: 4px !important;
-    gap: 4px !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    border-radius: 16px !important;
+    padding: 6px !important;
+    gap: 6px !important;
     display: flex !important;
     flex-wrap: wrap !important;
     overflow: visible !important;
     align-items: stretch !important;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.16) !important;
     backdrop-filter: none !important;
 }
 .stTabs [data-baseweb="tab"] {
-    color: #8187b0;
-    border-radius: 10px !important;
-    padding: 10px 16px !important;
+    color: #a2a8ce;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
     font-weight: 600;
-    font-size: 0.84em;
-    letter-spacing: 0.1px;
+    font-size: 0.81em;
+    letter-spacing: 0.35px;
+    text-transform: uppercase;
     border: none !important;
     margin-bottom: 0;
-    background: transparent !important;
-    transition: color 0.2s, background 0.2s;
-    flex: 1 1 170px !important;
+    background: rgba(255,255,255,0.015) !important;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+    border: 1px solid rgba(255,255,255,0.06) !important;
+    flex: 1 1 155px !important;
     justify-content: center !important;
     text-align: center !important;
 }
-.stTabs [data-baseweb="tab"]:hover { color: #d7daf5; background: rgba(255,255,255,0.05) !important; }
+.stTabs [data-baseweb="tab"]:hover {
+    color: #e9ecff;
+    background: rgba(255,255,255,0.06) !important;
+    border-color: rgba(255,255,255,0.20) !important;
+}
 .stTabs [aria-selected="true"] {
     color: #ffffff !important;
-    background: linear-gradient(120deg, rgba(245,166,35,0.18), rgba(245,166,35,0.08)) !important;
-    border: 1px solid rgba(245,166,35,0.45) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 0 0 1px rgba(245,166,35,0.10) inset !important;
+    background: linear-gradient(120deg, rgba(245,166,35,0.22), rgba(245,166,35,0.09)) !important;
+    border: 1px solid rgba(245,166,35,0.50) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 0 0 1px rgba(245,166,35,0.16) inset, 0 6px 18px rgba(245,166,35,0.12) !important;
 }
 .stTabs [data-baseweb="tab-panel"] { padding-top: 24px; }
 
@@ -872,7 +879,7 @@ def _calibrated_prob(sal_map, value, local_values=None):
     return float(np.clip(base, 1.0, 98.0))
 
 
-def get_gaze_sequence(sal_map, n=4):
+def get_gaze_sequence(sal_map, n=5):
     """
     Non-maximum suppression peak detection with Gaussian suppression.
     min_dist scales with image size so all resolutions work equally well.
@@ -922,6 +929,7 @@ def draw_gaze_sequence(img, points):
         ( 50, 210, 80,  230),   # 2 — green
         ( 50, 100, 240, 230),   # 3 — blue
         (240, 165,   0, 230),   # 4 — orange
+        (160, 100, 240, 230),   # 5 — violet
     ]
     coords = [(x, y) for x, y, _ in points]
 
@@ -1323,7 +1331,7 @@ def export_pdf(original, heatmap_img, hotspot_img, gaze_img,
     for i, (x, y, prob) in enumerate(gaze_points):
         tier = "HIGH" if prob >= 70 else "MEDIUM" if prob >= 40 else "LOW"
         seq_lines.append(f"Point {i+1}: ({x}, {y})  -  {prob:.0f}% ({tier})")
-    body("Top predicted fixation points in viewing order:\n" + "\n".join(seq_lines))
+    body("Top 5 predicted fixation points in the first 3-5 seconds:\n" + "\n".join(seq_lines))
     image_block(gaze_p, y=70, h=118)
 
     # AOI (optional)
@@ -1370,12 +1378,17 @@ def _et_wordmark(size="1.5em", align="left"):
         os.path.join(os.path.dirname(__file__), "elastic_tree_logo.png"),
         os.path.join(os.path.dirname(__file__), "assets", "elastic_tree_logo.png"),
     ]
-    logo_path = next((p for p in logo_candidates if os.path.exists(p)), None)
-
-    if logo_path:
+    for logo_path in logo_candidates:
+        if not os.path.exists(logo_path):
+            continue
         try:
             with open(logo_path, "rb") as fh:
-                encoded = base64.b64encode(fh.read()).decode("ascii")
+                raw = fh.read()
+            # Validate image bytes so we don't render broken <img> tags.
+            arr = np.frombuffer(raw, dtype=np.uint8)
+            if len(arr) < 64 or cv2.imdecode(arr, cv2.IMREAD_UNCHANGED) is None:
+                continue
+            encoded = base64.b64encode(raw).decode("ascii")
             return (
                 f"<span style='display:inline-block;text-align:{align};'>"
                 f"<img src='data:image/png;base64,{encoded}' "
@@ -1384,7 +1397,7 @@ def _et_wordmark(size="1.5em", align="left"):
                 "</span>"
             )
         except OSError:
-            pass
+            continue
 
     # Fallback to text logo if image cannot be loaded
     return (
@@ -1463,15 +1476,19 @@ def _landing_page():
         unsafe_allow_html=True,
     )
 
-    # ── Compact feature grid (3) ─────────────────────────────
+    # ── Compact feature grid (6) ─────────────────────────────
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     f1, f2, f3 = st.columns(3)
+    f4, f5, f6 = st.columns(3)
     feat_data = [
         ("HM", ET_GOLD, "Heat Map", "See strongest attention zones."),
-        ("HS", ET_TEAL, "Hot Spot", "Check low/medium/high visual impact."),
-        ("GS", ET_BLUE, "Gaze Sequence", "Preview likely first viewing path."),
+        ("HS", ET_TEAL, "Hot Spot", "Check low/medium/high impact."),
+        ("GS", ET_BLUE, "Gaze Sequence", "Preview first-glance path."),
+        ("CS", "#F5A623", "Clarity Score", "Measure visual focus quality."),
+        ("T5", "#8fd0ff", "Top 5 Elements", "Rank key attention regions."),
+        ("AB", "#8fffb3", "Attention Balance", "Check center-edge distribution."),
     ]
-    for col, (icon, color, title, desc) in zip([f1, f2, f3], feat_data):
+    for col, (icon, color, title, desc) in zip([f1, f2, f3, f4, f5, f6], feat_data):
         with col:
             st.markdown(
                 f"<div class='lp-feat'>"
@@ -1613,6 +1630,11 @@ def main():
                 "<span class='feature-chip'>Heat Map</span>"
                 "<span class='feature-chip'>Hot Spot</span>"
                 "<span class='feature-chip'>Gaze Sequence</span>"
+                "<span class='feature-chip'>Clarity Score</span>"
+                "<span class='feature-chip'>Top 5 Elements</span>"
+                "<span class='feature-chip'>Face Pull</span>"
+                "<span class='feature-chip'>Attention Balance</span>"
+                "<span class='feature-chip'>Variant Compare</span>"
                 "<span class='feature-chip'>PDF Export</span>"
                 "</div></div>",
                 unsafe_allow_html=True,
@@ -1675,15 +1697,15 @@ def main():
 
     with st.container():
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-            "Heat Map",
-            "Hot Spot",
-            "Gaze Sequence",
-            "Clarity Score",
-            "Top 5 Elements",
-            "Face Pull",
-            "Attention Balance",
-            "Variant Compare",
-            "Export Report",
+            "01 Heat Map",
+            "02 Hot Spot",
+            "03 Gaze Path",
+            "04 Clarity",
+            "05 Top Elements",
+            "06 Face Pull",
+            "07 Balance",
+            "08 Compare",
+            "09 Report",
         ])
 
         # ── TAB 1 — HEATMAP ───────────────────────────────────
@@ -1803,7 +1825,7 @@ def main():
             with img_col:
                 st.markdown(
                     "<p class='section-title'>Gaze Sequence</p>"
-                    "<p class='section-sub'>Top 4 predicted fixation points in viewing order</p>",
+                    "<p class='section-sub'>Top 5 predicted fixation points in the first 3&#8211;5 seconds</p>",
                     unsafe_allow_html=True,
                 )
                 st.image(gaze_img, width="stretch")
@@ -1827,9 +1849,9 @@ def main():
                     "<p class='section-title' style='margin-top:26px;'>Viewing Order</p>",
                     unsafe_allow_html=True,
                 )
-                hex_colors = ["#E84040", "#40C860", "#4060E8", "#E8A000"]
+                hex_colors = ["#E84040", "#40C860", "#4060E8", "#E8A000", "#9B7BFF"]
                 for i, (x, y, prob) in enumerate(gaze_points):
-                    c    = hex_colors[i]
+                    c    = hex_colors[i % len(hex_colors)]
                     tier = "HIGH" if prob >= 70 else "MEDIUM" if prob >= 40 else "LOW"
                     tcls = "tier-high" if prob >= 70 else "tier-medium" if prob >= 40 else "tier-low"
                     st.markdown(
