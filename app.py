@@ -478,18 +478,85 @@ def _scene_complexity(img):
     return float(np.clip((edge_density - 0.04) / 0.20, 0.0, 1.0))
 
 
+def _classify_scene_type(img):
+    """
+    Lightweight scene classifier to drive model fusion presets.
+    Returns one of: hero, product, social_busy, editorial.
+    """
+    complexity = _scene_complexity(img)
+    h, w = img.shape[:2]
+    total = max(h * w, 1)
+
+    # Approximate text heaviness: many small high-contrast contours.
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    bw = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 25, 11)
+    contours, _ = cv2.findContours(bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    text_like = 0
+    for c in contours:
+        x, y, cw, ch = cv2.boundingRect(c)
+        area = cw * ch
+        if 12 <= cw <= max(12, int(0.18 * w)) and 8 <= ch <= max(8, int(0.08 * h)) and area < 0.004 * total:
+            text_like += 1
+    text_density = float(np.clip(text_like / 220.0, 0.0, 1.0))
+
+    faces = _detect_faces(img)
+    face_count = len(faces)
+    face_area = 0.0
+    for x, y, fw, fh in faces:
+        face_area += float(fw * fh)
+    face_ratio = float(np.clip(face_area / total, 0.0, 1.0))
+
+    # Large centered object proxy (good for product cards).
+    cx1, cx2 = int(0.25 * w), int(0.75 * w)
+    cy1, cy2 = int(0.25 * h), int(0.75 * h)
+    center = gray[cy1:cy2, cx1:cx2]
+    outer = gray.copy()
+    outer[cy1:cy2, cx1:cx2] = int(np.mean(outer))
+    center_var = float(np.std(center)) if center.size else 0.0
+    outer_var = float(np.std(outer)) if outer.size else 1.0
+    center_focus = float(np.clip(center_var / max(outer_var, 1e-6), 0.0, 2.0))
+
+    if complexity >= 0.62 or text_density >= 0.45:
+        scene = "social_busy"
+    elif center_focus >= 1.08 and complexity <= 0.58:
+        scene = "product"
+    elif face_count > 0 or face_ratio >= 0.03:
+        scene = "hero"
+    else:
+        scene = "editorial"
+
+    return {
+        "scene_type": scene,
+        "complexity": round(complexity, 3),
+        "text_density": round(text_density, 3),
+        "face_ratio": round(face_ratio, 3),
+        "center_focus": round(center_focus, 3),
+    }
+
+
+SCENE_FUSION_PRESETS = {
+    "hero": {"deepgaze": 0.66, "salicon": 0.22, "vit": 0.12},
+    "product": {"deepgaze": 0.44, "salicon": 0.33, "vit": 0.23},
+    "social_busy": {"deepgaze": 0.34, "salicon": 0.24, "vit": 0.42},
+    "editorial": {"deepgaze": 0.50, "salicon": 0.30, "vit": 0.20},
+}
+
+
 def _adaptive_remote_weights(img, available, fallback):
     """Scene-aware weight adapter for remote DeepGaze/SALICON/ViT maps."""
     available = set(available)
     if not available:
-        return {}
+        return {}, {"scene_type": "editorial", "complexity": 0.0}
 
-    complexity = _scene_complexity(img)
-    face_present = len(_detect_faces(img)) > 0
+    scene_meta = _classify_scene_type(img)
+    scene = scene_meta.get("scene_type", "editorial")
+    complexity = float(scene_meta.get("complexity", 0.0))
+    preset = dict(SCENE_FUSION_PRESETS.get(scene, SCENE_FUSION_PRESETS["editorial"]))
+    # Add mild complexity adaptation on top of scene preset.
     base = {
-        "deepgaze": 0.52 + (0.12 if face_present else 0.0) - 0.06 * complexity,
-        "salicon": 0.30 + 0.05 * complexity,
-        "vit": 0.18 + 0.05 * complexity,
+        "deepgaze": preset["deepgaze"] - 0.05 * complexity,
+        "salicon": preset["salicon"] + 0.02 * complexity,
+        "vit": preset["vit"] + 0.03 * complexity,
     }
 
     merged = {}
@@ -499,7 +566,7 @@ def _adaptive_remote_weights(img, available, fallback):
 
     merged = {k: max(v, 0.0) for k, v in merged.items() if k in available}
     total = sum(merged.values()) + 1e-8
-    return {k: v / total for k, v in merged.items()}
+    return {k: v / total for k, v in merged.items()}, scene_meta
 
 
 def _remote_ensemble_saliency(img):
@@ -534,10 +601,13 @@ def _remote_ensemble_saliency(img):
     if "saliency_map" in payload:
         sm = _decode_saliency_blob(payload.get("saliency_map"), (H, W))
         if sm is not None:
+            scene_meta = _classify_scene_type(img)
             return sm, {
                 "face_found": False,
                 "engine": payload.get("model_used", "Remote Saliency"),
                 "confidence": _saliency_confidence_score(sm),
+                "scene_type": scene_meta.get("scene_type", "editorial"),
+                "complexity": scene_meta.get("complexity", 0.0),
             }
 
     # Ensemble mode
@@ -565,7 +635,7 @@ def _remote_ensemble_saliency(img):
     if not maps:
         return None
 
-    adapted = _adaptive_remote_weights(img, names, fallback)
+    adapted, scene_meta = _adaptive_remote_weights(img, names, fallback)
     weights = [float(adapted.get(name, 0.0)) for name in names]
     total_w = sum(weights) if sum(weights) > 1e-8 else float(len(weights))
     sal = np.zeros((H, W), np.float32)
@@ -587,6 +657,8 @@ def _remote_ensemble_saliency(img):
         "engine": "Remote Ensemble (DeepGaze+SALICON+ViT)",
         "agreement": round(float(agreement), 3) if agreement is not None else None,
         "confidence": _saliency_confidence_score(sal, agreement=agreement),
+        "scene_type": scene_meta.get("scene_type", "editorial"),
+        "complexity": scene_meta.get("complexity", 0.0),
     }
 
 
@@ -746,6 +818,7 @@ def compute_saliency(img, enable_tta=None):
     """
     H, W = img.shape[:2]
     tta_enabled = SALIENCY_ENABLE_TTA if enable_tta is None else bool(enable_tta)
+    scene_meta = _classify_scene_type(img)
 
     # ── Remote ensemble path (DeepGaze/SALICON/ViT) ─────────
     remote = _remote_ensemble_saliency(img)
@@ -797,6 +870,7 @@ def compute_saliency(img, enable_tta=None):
                     "engine": "DeepGaze IIE+",
                     "confidence": _saliency_confidence_score(sal),
                     "complexity": prior_meta["complexity"],
+                    "scene_type": scene_meta.get("scene_type", "editorial"),
                 }
             except Exception:
                 pass   # fall through to fallback
@@ -855,10 +929,11 @@ def compute_saliency(img, enable_tta=None):
         "engine": "Itti-Koch+",
         "confidence": _saliency_confidence_score(sal),
         "complexity": prior_meta["complexity"],
+        "scene_type": scene_meta.get("scene_type", "editorial"),
     }
 
 
-def compute_saliency_high_confidence(img, target_confidence=90.0, enabled=False):
+def compute_saliency_high_confidence(img, target_confidence=85.0, enabled=False, strict_target=False, max_passes=5):
     """
     High-confidence mode:
     - runs baseline saliency
@@ -867,15 +942,25 @@ def compute_saliency_high_confidence(img, target_confidence=90.0, enabled=False)
     """
     base_sal, base_comp = compute_saliency(img, enable_tta=SALIENCY_ENABLE_TTA)
     base_comp = dict(base_comp or {})
+    scene_type = base_comp.get("scene_type", "editorial")
+    scene_floor = {
+        "hero": 85.0,
+        "product": 85.0,
+        "social_busy": 82.0,
+        "editorial": 84.0,
+    }.get(scene_type, float(target_confidence))
+    dynamic_target = float(target_confidence) if strict_target else max(float(target_confidence), scene_floor)
     base_conf = float(base_comp.get("confidence", _saliency_confidence_score(base_sal)))
     base_comp["confidence"] = round(base_conf, 1)
     base_comp["mode"] = "Standard"
-    base_comp["target_confidence"] = float(target_confidence)
+    base_comp["target_confidence"] = float(dynamic_target)
 
-    if not enabled or base_conf >= float(target_confidence):
+    if not enabled or base_conf >= float(dynamic_target):
         return base_sal, base_comp
 
     candidates = [(base_sal, base_comp)]
+    current_best = base_conf
+    passes = 1
 
     # Candidate 2: toggle TTA behavior.
     try:
@@ -884,6 +969,8 @@ def compute_saliency_high_confidence(img, target_confidence=90.0, enabled=False)
         alt_comp["confidence"] = round(float(alt_comp.get("confidence", _saliency_confidence_score(alt_sal))), 1)
         alt_comp["mode"] = "High-Confidence"
         candidates.append((alt_sal, alt_comp))
+        passes += 1
+        current_best = max(current_best, float(alt_comp["confidence"]))
     except Exception:
         pass
 
@@ -893,20 +980,56 @@ def compute_saliency_high_confidence(img, target_confidence=90.0, enabled=False)
         flip_sal = flip_sal[:, ::-1]
         agreement = _map_correlation(base_sal, flip_sal)
         blend_sal = _sharpen_sal(_norm(0.70 * base_sal + 0.30 * flip_sal))
+        if scene_type == "social_busy":
+            # Slightly stronger smoothing helps noisy clutter scenes.
+            blend_sal = _norm(gaussian_filter(blend_sal, sigma=max(img.shape[:2]) / 150))
         blend_comp = dict(base_comp)
         blend_comp["engine"] = f"{base_comp.get('engine', 'Model')} + Mirror Consensus"
         blend_comp["agreement"] = round(float(agreement), 3)
         blend_comp["confidence"] = _saliency_confidence_score(blend_sal, agreement=agreement)
         blend_comp["mode"] = "High-Confidence"
         candidates.append((blend_sal, blend_comp))
+        passes += 1
+        current_best = max(current_best, float(blend_comp["confidence"]))
     except Exception:
         pass
 
+    # Strict target mode: keep trying additional denoise/consensus variants until target or max passes.
+    if strict_target and current_best < float(dynamic_target):
+        extra_specs = [
+            (0.62, 0.38, 180.0),  # stronger mirror blend + smoother
+            (0.78, 0.22, 240.0),  # gentler mirror blend + lighter smoothing
+            (0.55, 0.45, 160.0),  # aggressive consensus for noisy creatives
+        ]
+        for wb, wf, sigma_div in extra_specs:
+            if passes >= int(max_passes):
+                break
+            try:
+                flip_sal, _ = compute_saliency(img[:, ::-1, :], enable_tta=True)
+                flip_sal = flip_sal[:, ::-1]
+                agreement = _map_correlation(base_sal, flip_sal)
+                extra_sal = _norm(wb * base_sal + wf * flip_sal)
+                extra_sal = _norm(gaussian_filter(extra_sal, sigma=max(img.shape[:2]) / sigma_div))
+                extra_sal = _sharpen_sal(extra_sal)
+                extra_comp = dict(base_comp)
+                extra_comp["engine"] = f"{base_comp.get('engine', 'Model')} + Strict Consensus"
+                extra_comp["agreement"] = round(float(agreement), 3)
+                extra_comp["confidence"] = _saliency_confidence_score(extra_sal, agreement=agreement)
+                extra_comp["mode"] = "Target 85"
+                candidates.append((extra_sal, extra_comp))
+                passes += 1
+                current_best = max(current_best, float(extra_comp["confidence"]))
+                if current_best >= float(dynamic_target):
+                    break
+            except Exception:
+                continue
+
     best_sal, best_comp = max(candidates, key=lambda item: float(item[1].get("confidence", 0.0)))
     best_comp = dict(best_comp)
-    best_comp["mode"] = "High-Confidence"
-    best_comp["target_confidence"] = float(target_confidence)
-    best_comp["passes"] = len(candidates)
+    best_comp["mode"] = "Target 85" if strict_target else "High-Confidence"
+    best_comp["target_confidence"] = float(dynamic_target)
+    best_comp["passes"] = int(passes)
+    best_comp["target_met"] = float(best_comp.get("confidence", 0.0)) >= float(dynamic_target)
     return best_sal, best_comp
 
 
@@ -1818,7 +1941,8 @@ def main():
             unsafe_allow_html=True,
         )
         high_conf_mode = True
-        st.caption("High-Confidence Mode is always enabled.")
+        strict_target_85 = True
+        st.caption("Target 85 mode is enabled (strict confidence reruns).")
 
     if not uploaded:
         st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
@@ -1864,8 +1988,10 @@ def main():
             _load_deepgaze_model()
         sal_map, components = compute_saliency_high_confidence(
             img_np,
-            target_confidence=90.0,
+            target_confidence=85.0,
             enabled=high_conf_mode,
+            strict_target=strict_target_85,
+            max_passes=5,
         )
         engine_label = components.get("engine", engine_label)
         heatmap_img  = generate_heatmap(img_np, sal_map)
@@ -1891,7 +2017,8 @@ def main():
         ("Peak Attention", f"{peak_pct}%", tier_color),
         ("Clarity Score", f"{clarity['score']:.1f}", "#F5A623"),
         ("Model Confidence", f"{float(components.get('confidence', 0.0)):.1f}%", "#8fd0ff"),
-        ("Mode", components.get("mode", "Standard"), "#9B7BFF"),
+        ("Target 85", "Met" if components.get("target_met") else "Retry", "#44BB77" if components.get("target_met") else "#F5A623"),
+        ("Scene", str(components.get("scene_type", "editorial")).replace("_", " ").title(), "#A8B0FF"),
         ("Face Pull", f"{face_pull['share']:.1f}%", "#3CBFBF"),
         ("Distraction", f"{balance['distraction']:.1f}%", "#F08A8A"),
         ("Faces", "Yes" if components.get("face_found") else "No", "#44BB77" if components.get("face_found") else "#8888aa"),
@@ -2229,8 +2356,10 @@ def main():
                 img_b = np.array(Image.open(variant_file).convert("RGB"))
                 sal_b, comp_b = compute_saliency_high_confidence(
                     img_b,
-                    target_confidence=90.0,
+                    target_confidence=85.0,
                     enabled=high_conf_mode,
+                    strict_target=strict_target_85,
+                    max_passes=5,
                 )
                 heat_b = generate_heatmap(img_b, sal_b)
                 clarity_b = compute_clarity_score(sal_b)
