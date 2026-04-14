@@ -7,9 +7,9 @@ matplotlib>=3.7.0
 fpdf2>=2.7.0
 streamlit-drawable-canvas>=0.9.3
 requests>=2.31.0
-# Optional high-accuracy stack; guarded for deploy compatibility.
-torch; python_version < "3.13"
-torchvision; python_version < "3.13"
-deepgaze-pytorch; python_version < "3.13"
-mediapipe; python_version < "3.13"
-ultralytics; python_version < "3.13"
+# DeepGaze-only runtime dependencies.
+torch
+torchvision
+deepgaze-pytorch
+mediapipe
+ultralytics
