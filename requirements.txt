@@ -6,7 +6,3 @@ Pillow>=10.0.0
 matplotlib>=3.7.0
 fpdf2>=2.7.0
 streamlit-drawable-canvas>=0.9.3
-torch
-deepgaze-pytorch
-mediapipe
-ultralytics
