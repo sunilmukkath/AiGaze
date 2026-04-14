@@ -1785,7 +1785,34 @@ def main():
             with rcol:
                 if top_elements:
                     rows = [{"Rank": e["rank"], "Peak %": e["peak"], "Share %": e["share"], "Score": e["score"]} for e in top_elements]
-                    st.dataframe(rows, width="stretch", hide_index=True)
+                    table_rows = "".join([
+                        "<tr>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#e9ecff;font-weight:600;'>{r['Rank']}</td>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#ffb86b;'>{r['Peak %']}</td>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#8fd0ff;'>{r['Share %']}</td>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#8fffb3;font-weight:700;'>{r['Score']}</td>"
+                        "</tr>"
+                        for r in rows
+                    ])
+                    st.markdown(
+                        "<div style='border:1px solid rgba(255,255,255,0.10);border-radius:12px;overflow:hidden;"
+                        "background:linear-gradient(180deg, rgba(12,17,40,0.96), rgba(8,12,28,0.94));'>"
+                        "<table style='width:100%;border-collapse:collapse;font-size:0.83em;'>"
+                        "<thead>"
+                        "<tr style='background:linear-gradient(180deg, rgba(91,141,217,0.28), rgba(91,141,217,0.12));'>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f5f7ff;border-bottom:1px solid rgba(255,255,255,0.16);'>Rank</th>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f5f7ff;border-bottom:1px solid rgba(255,255,255,0.16);'>Peak %</th>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f5f7ff;border-bottom:1px solid rgba(255,255,255,0.16);'>Share %</th>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f5f7ff;border-bottom:1px solid rgba(255,255,255,0.16);'>Score</th>"
+                        "</tr>"
+                        "</thead>"
+                        "<tbody>"
+                        + table_rows +
+                        "</tbody>"
+                        "</table>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
                 else:
                     st.info("No strong elements detected.")
 
