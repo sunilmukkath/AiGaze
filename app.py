@@ -350,6 +350,8 @@ div[data-testid="stTextInput"] input {
     transition: border-color 0.2s;
 }
 div[data-testid="stTextInput"] input[type="password"] {
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
 }
@@ -1755,6 +1757,33 @@ def _landing_page():
     st.markdown("""
     <style>
     html, body, .stApp { background: #07071c !important; }
+    .lp-signin-wrap { max-width: 560px; margin: 0 auto; }
+    .lp-signin-card {
+        background: linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.018));
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        padding: 22px 22px;
+        text-align: center;
+        box-shadow: 0 12px 34px rgba(0,0,0,0.26), 0 0 0 1px rgba(245,166,35,0.05) inset;
+        backdrop-filter: blur(6px);
+    }
+    .lp-signin-title {
+        font-family: Space Grotesk, Inter, sans-serif;
+        font-size: 0.98em;
+        font-weight: 700;
+        color: #f5f6ff;
+        margin-bottom: 4px;
+    }
+    .lp-signin-sub {
+        color: #97a0cb;
+        font-size: 0.78em;
+        margin-bottom: 12px;
+    }
+    .lp-powered {
+        color: #59609b;
+        font-size: 0.72em;
+        margin-top: 14px;
+    }
     .lp-feat {
         background: rgba(255,255,255,0.025);
         border: 1px solid rgba(255,255,255,0.07);
@@ -1805,8 +1834,37 @@ def _landing_page():
         unsafe_allow_html=True,
     )
 
+    # ── Sign-in ───────────────────────────────────────────────
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+    _, sc, _ = st.columns([1.2, 1.6, 1.2])
+    with sc:
+        st.markdown(
+            "<div class='lp-signin-wrap'><div class='lp-signin-card'>"
+            "<div class='lp-signin-title'>Access AI Gaze&#8482;</div>"
+            "<div class='lp-signin-sub'>Enter password to continue</div>",
+            unsafe_allow_html=True,
+        )
+        pwd = st.text_input(
+            "Password",
+            type="password",
+            placeholder="Enter password",
+            label_visibility="collapsed",
+        )
+        if st.button("Sign In  →", type="primary", use_container_width=True):
+            if pwd == _APP_PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect password. Please try again.")
+        st.markdown(
+            "<div class='lp-powered'>"
+            "Powered by " + _et_wordmark("0.85em", "center") + "</div>"
+            "</div></div>",
+            unsafe_allow_html=True,
+        )
+
     # ── Compact feature grid (6) ─────────────────────────────
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
     f1, f2, f3 = st.columns(3)
     f4, f5, f6 = st.columns(3)
     feat_data = [
@@ -1832,40 +1890,6 @@ def _landing_page():
                 unsafe_allow_html=True,
             )
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-
-    # ── Sign-in ───────────────────────────────────────────────
-    st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-    _, sc, _ = st.columns([1, 2, 1])
-    with sc:
-        st.markdown(
-            "<div style='background:rgba(255,255,255,0.025);"
-            "border:1px solid rgba(255,255,255,0.1);"
-            "border-radius:20px;padding:26px 24px;text-align:center;'>"
-            "<div style='font-family:Space Grotesk,Inter,sans-serif;"
-            "font-size:1.0em;font-weight:700;color:#f0f0fa;margin-bottom:4px;'>"
-            "Access AI Gaze&#8482;</div>"
-            "<div style='color:#8888b0;font-size:0.78em;margin-bottom:14px;'>"
-            "Enter password to continue</div>",
-            unsafe_allow_html=True,
-        )
-        pwd = st.text_input(
-            "Password",
-            type="password",
-            placeholder="Enter password",
-            label_visibility="collapsed",
-        )
-        if st.button("Sign In  →", type="primary", use_container_width=True):
-            if pwd == _APP_PASSWORD:
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("Incorrect password. Please try again.")
-        st.markdown(
-            "<div style='color:#44446a;font-size:0.72em;margin-top:20px;'>"
-            "Powered by " + _et_wordmark("0.85em", "center") + "</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
 
     # ── Footer ────────────────────────────────────────────────
     st.markdown("<div style='height:52px'></div>", unsafe_allow_html=True)
@@ -1942,7 +1966,6 @@ def main():
         )
         high_conf_mode = True
         strict_target_85 = True
-        st.caption("Target 85 mode is enabled (strict confidence reruns).")
 
     if not uploaded:
         st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
@@ -2016,8 +2039,7 @@ def main():
     metric_items = [
         ("Peak Attention", f"{peak_pct}%", tier_color),
         ("Clarity Score", f"{clarity['score']:.1f}", "#F5A623"),
-        ("Model Confidence", f"{float(components.get('confidence', 0.0)):.1f}%", "#8fd0ff"),
-        ("Target 85", "Met" if components.get("target_met") else "Retry", "#44BB77" if components.get("target_met") else "#F5A623"),
+        ("Confidence", f"{float(components.get('confidence', 0.0)):.1f}%", "#8fd0ff"),
         ("Scene", str(components.get("scene_type", "editorial")).replace("_", " ").title(), "#A8B0FF"),
         ("Face Pull", f"{face_pull['share']:.1f}%", "#3CBFBF"),
         ("Distraction", f"{balance['distraction']:.1f}%", "#F08A8A"),
