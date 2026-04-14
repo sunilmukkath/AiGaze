@@ -19,6 +19,11 @@ import streamlit as st
 from PIL import Image
 from scipy.ndimage import gaussian_filter, maximum_filter
 
+try:
+    import requests
+except ImportError:
+    requests = None
+
 # ── Compatibility patch: streamlit-drawable-canvas uses a moved + changed API ──
 # New Streamlit expects a layout_config object; canvas passes a plain int for width.
 try:
@@ -92,6 +97,9 @@ ET_TEAL    = "#3CBFBF"
 ET_BLUE    = "#5B8DD9"
 ET_GOLD    = "#F5A623"
 ET_GREEN   = "#44BB77"
+
+# Optional remote saliency inference endpoint (for DeepGaze/SALICON/ViT ensemble).
+SALIENCY_API_URL = os.getenv("SALIENCY_API_URL", "").strip()
 
 # ── Custom CSS ───────────────────────────────────────────────
 _CSS = """
@@ -400,6 +408,95 @@ def _norm(arr):
     return np.zeros_like(arr) if mx - mn < 1e-8 else (arr - mn) / (mx - mn)
 
 
+def _decode_saliency_blob(blob, target_hw):
+    """Decode base64/bytes saliency image into normalized 2D map."""
+    H, W = target_hw
+    if blob is None:
+        return None
+    try:
+        if isinstance(blob, str):
+            raw = base64.b64decode(blob)
+        elif isinstance(blob, bytes):
+            raw = blob
+        else:
+            return None
+        arr = np.frombuffer(raw, dtype=np.uint8)
+        im = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+        if im is None:
+            return None
+        if im.shape[:2] != (H, W):
+            im = cv2.resize(im, (W, H), interpolation=cv2.INTER_LINEAR)
+        return _norm(im.astype(np.float32))
+    except Exception:
+        return None
+
+
+def _remote_ensemble_saliency(img):
+    """
+    Optional high-accuracy remote inference path.
+    Expected response keys (any subset):
+      - saliency_map (single)
+      - deepgaze_map, salicon_map, vit_map (ensemble components)
+      - weights: {"deepgaze":0.55,"salicon":0.30,"vit":0.15}
+    """
+    if not SALIENCY_API_URL or requests is None:
+        return None
+    H, W = img.shape[:2]
+    ok, buf = cv2.imencode(".jpg", cv2.cvtColor(img, cv2.COLOR_RGB2BGR), [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+    if not ok:
+        return None
+
+    try:
+        resp = requests.post(
+            SALIENCY_API_URL,
+            files={"image": ("image.jpg", buf.tobytes(), "image/jpeg")},
+            data={"models": "deepgaze,salicon,vit"},
+            timeout=45,
+        )
+        if resp.status_code != 200:
+            return None
+        payload = resp.json()
+    except Exception:
+        return None
+
+    # Single-map mode
+    if "saliency_map" in payload:
+        sm = _decode_saliency_blob(payload.get("saliency_map"), (H, W))
+        if sm is not None:
+            return sm, {"face_found": False, "engine": payload.get("model_used", "Remote Saliency")}
+
+    # Ensemble mode
+    dg = _decode_saliency_blob(payload.get("deepgaze_map"), (H, W))
+    sc = _decode_saliency_blob(payload.get("salicon_map"), (H, W))
+    vt = _decode_saliency_blob(payload.get("vit_map"), (H, W))
+    if dg is None and sc is None and vt is None:
+        return None
+
+    w = payload.get("weights", {}) if isinstance(payload.get("weights"), dict) else {}
+    wd = float(w.get("deepgaze", 0.55))
+    ws = float(w.get("salicon", 0.30))
+    wv = float(w.get("vit", 0.15))
+
+    maps = []
+    weights = []
+    if dg is not None:
+        maps.append(dg); weights.append(max(wd, 0.0))
+    if sc is not None:
+        maps.append(sc); weights.append(max(ws, 0.0))
+    if vt is not None:
+        maps.append(vt); weights.append(max(wv, 0.0))
+    if not maps:
+        return None
+
+    total_w = sum(weights) if sum(weights) > 1e-8 else float(len(weights))
+    sal = np.zeros((H, W), np.float32)
+    for m, ww in zip(maps, weights):
+        sal += m * (ww / total_w)
+    sal = _norm(gaussian_filter(sal, sigma=max(H, W) / 120))
+    sal = _sharpen_sal(sal)
+    return sal, {"face_found": False, "engine": "Remote Ensemble (DeepGaze+SALICON+ViT)"}
+
+
 def _center_bias(H, W):
     """Gaussian log-density center bias (people look at image centers)."""
     from scipy.special import logsumexp
@@ -522,6 +619,11 @@ def compute_saliency(img):
     Uses DeepGaze IIE when available, Itti-Koch fallback otherwise.
     """
     H, W = img.shape[:2]
+
+    # ── Remote ensemble path (DeepGaze/SALICON/ViT) ─────────
+    remote = _remote_ensemble_saliency(img)
+    if remote is not None:
+        return remote
 
     # ── DeepGaze path ──────────────────────────────────────
     if DEEPGAZE_AVAILABLE:
@@ -1264,7 +1366,7 @@ def export_pdf(original, heatmap_img, hotspot_img, gaze_img,
 def _et_wordmark(size="1.5em", align="left"):
     """Elastic Tree logo image as inline HTML."""
     logo_candidates = [
-        "/Users/sunilmukkath/.cursor/projects/Users-sunilmukkath-aigaze/assets/elastic_tree_logo-601f7ed6-28ac-40c3-8b55-bb06e9520e82.png",
+        os.path.join(os.path.dirname(__file__), "elastic_tree_logo.png"),
         os.path.join(os.path.dirname(__file__), "assets", "elastic_tree_logo.png"),
     ]
     logo_path = next((p for p in logo_candidates if os.path.exists(p)), None)
@@ -1521,7 +1623,10 @@ def main():
     img_np  = np.array(pil_img)
     H, W    = img_np.shape[:2]
 
-    engine_label = "DeepGaze IIE" if DEEPGAZE_AVAILABLE else "Itti-Koch"
+    if SALIENCY_API_URL:
+        engine_label = "Remote Ensemble"
+    else:
+        engine_label = "DeepGaze IIE" if DEEPGAZE_AVAILABLE else "Itti-Koch"
     with st.spinner(f"Running {engine_label} analysis…"):
         if DEEPGAZE_AVAILABLE:
             _load_deepgaze_model()
