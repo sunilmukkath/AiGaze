@@ -2039,7 +2039,6 @@ def main():
     metric_items = [
         ("Peak Attention", f"{peak_pct}%", tier_color),
         ("Clarity Score", f"{clarity['score']:.1f}", "#F5A623"),
-        ("Confidence", f"{float(components.get('confidence', 0.0)):.1f}%", "#8fd0ff"),
         ("Scene", str(components.get("scene_type", "editorial")).replace("_", " ").title(), "#A8B0FF"),
         ("Face Pull", f"{face_pull['share']:.1f}%", "#3CBFBF"),
         ("Distraction", f"{balance['distraction']:.1f}%", "#F08A8A"),
