@@ -1186,7 +1186,7 @@ def _calibrated_prob(sal_map, value, local_values=None):
     return float(np.clip(base, 1.0, 98.0))
 
 
-def get_gaze_sequence(sal_map, n=5):
+def get_gaze_sequence(sal_map, n=4):
     """
     Non-maximum suppression peak detection with Gaussian suppression.
     min_dist scales with image size so all resolutions work equally well.
@@ -1662,7 +1662,7 @@ def export_pdf(original, heatmap_img, hotspot_img, gaze_img,
         tier = "HIGH" if prob >= 70 else "MEDIUM" if prob >= 40 else "LOW"
         sec = fix_secs[i] if i < len(fix_secs) else 0.0
         seq_lines.append(f"Point {i+1}: ({x}, {y})  -  {prob:.0f}% ({tier})  -  {sec:.2f}s")
-    body("Top 5 predicted fixation points in a 3-second viewing window:\n" + "\n".join(seq_lines))
+    body("Top 4 predicted fixation points in a 3-second viewing window:\n" + "\n".join(seq_lines))
     image_block(gaze_p, y=70, h=118)
 
     # AOI (optional)
@@ -2190,7 +2190,7 @@ def main():
             with img_col:
                 st.markdown(
                     "<p class='section-title'>Gaze Sequence</p>"
-                    "<p class='section-sub'>Top 5 predicted fixation points in a 3-second viewing window</p>",
+                    "<p class='section-sub'>Top 4 predicted fixation points in a 3-second viewing window</p>",
                     unsafe_allow_html=True,
                 )
                 st.image(gaze_img, width="stretch")
