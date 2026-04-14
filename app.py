@@ -606,10 +606,11 @@ def _person_object_boost(img, sal, H, W, person_weight=0.12):
 
 
 def _sharpen_sal(sal):
-    """Percentile clip + gamma < 1 to amplify peaks and suppress noise floor."""
+    """Balanced contrast preset: keep dark regions clearer, hotspots readable."""
     p2, p98 = np.percentile(sal, 2), np.percentile(sal, 98)
     sal = np.clip((sal - p2) / (p98 - p2 + 1e-8), 0, 1)
-    sal = np.power(sal, 0.65)
+    # Less aggressive than before (0.65): preserves low-attention contrast.
+    sal = np.power(sal, 0.90)
     return _norm(sal)
 
 
@@ -731,15 +732,15 @@ def _attention_colormap():
     # Low-saliency stays mostly transparent so the base image remains visible.
     colors = [
         (0.00, 0.00, 0.02, 0.00),   # 0%   transparent
-        (0.00, 0.00, 0.15, 0.00),   # 8%   deep navy, still transparent
-        (0.00, 0.10, 0.95, 0.22),   # 25%  blue
-        (0.05, 0.85, 1.00, 0.35),   # 42%  cyan
-        (0.60, 0.96, 0.20, 0.50),   # 58%  green-yellow
-        (1.00, 0.95, 0.00, 0.62),   # 72%  yellow
-        (1.00, 0.52, 0.00, 0.74),   # 86%  orange
+        (0.00, 0.00, 0.12, 0.00),   # 14%  deep navy, still transparent
+        (0.00, 0.06, 0.78, 0.16),   # 32%  blue
+        (0.04, 0.74, 0.98, 0.30),   # 50%  cyan
+        (0.56, 0.95, 0.24, 0.46),   # 66%  green-yellow
+        (1.00, 0.95, 0.00, 0.58),   # 80%  yellow
+        (1.00, 0.52, 0.00, 0.72),   # 90%  orange
         (0.92, 0.00, 0.00, 0.84),   # 100% red
     ]
-    positions = [0.0, 0.08, 0.25, 0.42, 0.58, 0.72, 0.86, 1.0]
+    positions = [0.0, 0.14, 0.32, 0.50, 0.66, 0.80, 0.90, 1.0]
     return mcolors.LinearSegmentedColormap.from_list(
         "attention", list(zip(positions, colors))
     )
