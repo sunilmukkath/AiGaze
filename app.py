@@ -816,123 +816,64 @@ def _sharpen_sal(sal):
 def compute_saliency(img, enable_tta=None):
     """
     Returns (sal_map [0,1], meta_dict).
-    Uses DeepGaze IIE when available, Itti-Koch fallback otherwise.
+    DeepGaze-only inference path (no non-DeepGaze fallback).
     """
     H, W = img.shape[:2]
     tta_enabled = SALIENCY_ENABLE_TTA if enable_tta is None else bool(enable_tta)
     scene_meta = _classify_scene_type(img)
 
-    # ── Remote ensemble path (DeepGaze/SALICON/ViT) ─────────
-    remote = _remote_ensemble_saliency(img)
-    if remote is not None:
-        return remote
+    if not DEEPGAZE_AVAILABLE:
+        raise RuntimeError("DeepGaze dependencies are unavailable. Install torch + deepgaze-pytorch.")
 
-    # ── DeepGaze path ──────────────────────────────────────
-    if DEEPGAZE_AVAILABLE:
-        model, device, ok = _load_deepgaze_model()
-        if ok:
-            try:
-                # Run at full res up to 1024px — more detail than 768
-                max_dim = 1024
-                scale   = min(max_dim / H, max_dim / W, 1.0)
-                rH, rW  = int(H * scale), int(W * scale)
-                img_r   = cv2.resize(img, (rW, rH), interpolation=cv2.INTER_AREA)
+    model, device, ok = _load_deepgaze_model()
+    if not ok or model is None or device is None:
+        raise RuntimeError("DeepGaze model failed to load.")
 
-                sal = _deepgaze_forward(model, device, img_r)
+    try:
+        # Run at full res up to 1024px — more detail than 768
+        max_dim = 1024
+        scale   = min(max_dim / H, max_dim / W, 1.0)
+        rH, rW  = int(H * scale), int(W * scale)
+        img_r   = cv2.resize(img, (rW, rH), interpolation=cv2.INTER_AREA)
 
-                # Multi-scale blend improves stability on very large creatives.
-                small_scale = min(768 / H, 768 / W, 1.0)
-                if small_scale < scale:
-                    sH, sW = int(H * small_scale), int(W * small_scale)
-                    img_s = cv2.resize(img, (sW, sH), interpolation=cv2.INTER_AREA)
-                    sal_s = _deepgaze_forward(model, device, img_s)
-                    sal_s = cv2.resize(sal_s, (rW, rH), interpolation=cv2.INTER_LINEAR)
-                    sal = _norm(0.72 * sal + 0.28 * sal_s)
+        sal = _deepgaze_forward(model, device, img_r)
 
-                # Test-time augmentation reduces left/right directional artifacts.
-                if tta_enabled:
-                    sal_flip = _deepgaze_forward(model, device, img_r[:, ::-1, :])[:, ::-1]
-                    sal = _norm(0.78 * sal + 0.22 * sal_flip)
+        # Multi-scale blend improves stability on very large creatives.
+        small_scale = min(768 / H, 768 / W, 1.0)
+        if small_scale < scale:
+            sH, sW = int(H * small_scale), int(W * small_scale)
+            img_s = cv2.resize(img, (sW, sH), interpolation=cv2.INTER_AREA)
+            sal_s = _deepgaze_forward(model, device, img_s)
+            sal_s = cv2.resize(sal_s, (rW, rH), interpolation=cv2.INTER_LINEAR)
+            sal = _norm(0.72 * sal + 0.28 * sal_s)
 
-                if scale < 1.0:
-                    sal = cv2.resize(sal, (W, H), interpolation=cv2.INTER_LINEAR)
+        # Test-time augmentation reduces left/right directional artifacts.
+        if tta_enabled:
+            sal_flip = _deepgaze_forward(model, device, img_r[:, ::-1, :])[:, ::-1]
+            sal = _norm(0.78 * sal + 0.22 * sal_flip)
 
-                # Lighter smoothing preserves spatial sharpness
-                sal = gaussian_filter(sal, sigma=max(H, W) / 110)
-                sal = _norm(sal)
+        if scale < 1.0:
+            sal = cv2.resize(sal, (W, H), interpolation=cv2.INTER_LINEAR)
 
-                # AI priors adapted to scene complexity.
-                sal, prior_meta = _apply_semantic_priors(img, sal)
+        # Lighter smoothing preserves spatial sharpness
+        sal = gaussian_filter(sal, sigma=max(H, W) / 110)
+        sal = _norm(sal)
 
-                # Sharpen: percentile clip + gamma to make hot-spots pop
-                sal = _sharpen_sal(sal)
+        # AI priors adapted to scene complexity.
+        sal, prior_meta = _apply_semantic_priors(img, sal)
 
-                return sal, {
-                    "face_found": prior_meta["face_found"] or prior_meta["person_found"],
-                    "engine": "DeepGaze IIE+",
-                    "confidence": _saliency_confidence_score(sal),
-                    "complexity": prior_meta["complexity"],
-                    "scene_type": scene_meta.get("scene_type", "editorial"),
-                }
-            except Exception:
-                pass   # fall through to fallback
+        # Sharpen: percentile clip + gamma to make hot-spots pop
+        sal = _sharpen_sal(sal)
 
-    # ── Fallback: Itti-Koch (enhanced) ────────────────────
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-
-    # Multi-scale intensity centre-surround
-    intensity_maps = []
-    for s1, s2 in [(1, 8), (2, 16), (3, 28)]:
-        d = np.abs(
-            gaussian_filter(gray.astype(np.float32) / 255, s1) -
-            gaussian_filter(gray.astype(np.float32) / 255, s2)
-        )
-        intensity_maps.append(_norm(d))
-    intensity = _norm(sum(intensity_maps) / 3)
-
-    # Opponent colour contrast (R/G + B/Y)
-    f = img.astype(np.float32) / 255
-    R, G, B = f[:, :, 0], f[:, :, 1], f[:, :, 2]
-    rg = np.abs(R - G) / (R + G + 1e-8)
-    by = np.abs(B - 0.5 * (R + G)) / (B + 0.5 * (R + G) + 1e-8)
-    color = _norm(gaussian_filter(_norm(rg + by), 5))
-
-    # HSV saturation channel — pops vibrant objects
-    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.float32)
-    sat = _norm(gaussian_filter(hsv[:, :, 1] / 255.0, 4))
-
-    # Multi-threshold Canny edges
-    e1 = cv2.Canny(gray, 30,  90) / 255.0
-    e2 = cv2.Canny(gray, 60, 160) / 255.0
-    e3 = cv2.Canny(gray, 100, 220) / 255.0
-    edges = _norm(gaussian_filter(np.maximum(np.maximum(e1, e2), e3), 4))
-
-    # Face detection
-    faces = _detect_faces(img)
-    face_map  = np.zeros((H, W), np.float32)
-    face_found = len(faces) > 0
-    for fx, fy, fw, fh in faces:
-        face_map[fy:fy+fh, fx:fx+fw] = 1.0
-    if face_found:
-        face_map = gaussian_filter(face_map, sigma=max(H, W) / 16)
-        face_map = _norm(face_map)
-
-    if face_found:
-        sal = 0.12*intensity + 0.18*color + 0.14*sat + 0.10*edges + 0.46*face_map
-    else:
-        sal = 0.26*intensity + 0.28*color + 0.24*sat + 0.22*edges
-
-    # Adaptive semantic priors improve fallback quality on people/object creatives.
-    sal, prior_meta = _apply_semantic_priors(img, sal)
-    sal = gaussian_filter(sal, sigma=max(H, W) / 65)
-    sal = _sharpen_sal(sal)
-    return sal, {
-        "face_found": face_found or prior_meta["person_found"],
-        "engine": "Itti-Koch+",
-        "confidence": _saliency_confidence_score(sal),
-        "complexity": prior_meta["complexity"],
-        "scene_type": scene_meta.get("scene_type", "editorial"),
-    }
+        return sal, {
+            "face_found": prior_meta["face_found"] or prior_meta["person_found"],
+            "engine": "DeepGaze IIE+",
+            "confidence": _saliency_confidence_score(sal),
+            "complexity": prior_meta["complexity"],
+            "scene_type": scene_meta.get("scene_type", "editorial"),
+        }
+    except Exception as exc:
+        raise RuntimeError(f"DeepGaze inference failed: {exc}") from exc
 
 
 def compute_saliency_high_confidence(img, target_confidence=85.0, enabled=False, strict_target=False, max_passes=5):
@@ -2001,21 +1942,21 @@ def main():
     img_np  = np.array(pil_img)
     H, W    = img_np.shape[:2]
 
-    if SALIENCY_API_URL:
-        engine_label = "Remote Ensemble"
-    else:
-        engine_label = "DeepGaze IIE" if DEEPGAZE_AVAILABLE else "Itti-Koch"
+    engine_label = "DeepGaze IIE"
     run_label = f"{engine_label} High-Confidence analysis" if high_conf_mode else f"{engine_label} analysis"
     with st.spinner(f"Running {run_label}…"):
-        if DEEPGAZE_AVAILABLE:
-            _load_deepgaze_model()
-        sal_map, components = compute_saliency_high_confidence(
-            img_np,
-            target_confidence=85.0,
-            enabled=high_conf_mode,
-            strict_target=strict_target_85,
-            max_passes=5,
-        )
+        try:
+            sal_map, components = compute_saliency_high_confidence(
+                img_np,
+                target_confidence=85.0,
+                enabled=high_conf_mode,
+                strict_target=strict_target_85,
+                max_passes=5,
+            )
+        except RuntimeError as err:
+            st.error(str(err))
+            st.info("This app is configured for DeepGaze-only inference. Ensure DeepGaze dependencies are installed.")
+            st.stop()
         engine_label = components.get("engine", engine_label)
         heatmap_img  = generate_heatmap(img_np, sal_map)
         hotspot_img  = generate_hotspot(img_np, sal_map)
@@ -2375,13 +2316,17 @@ def main():
             )
             if variant_file:
                 img_b = np.array(Image.open(variant_file).convert("RGB"))
-                sal_b, comp_b = compute_saliency_high_confidence(
-                    img_b,
-                    target_confidence=85.0,
-                    enabled=high_conf_mode,
-                    strict_target=strict_target_85,
-                    max_passes=5,
-                )
+                try:
+                    sal_b, comp_b = compute_saliency_high_confidence(
+                        img_b,
+                        target_confidence=85.0,
+                        enabled=high_conf_mode,
+                        strict_target=strict_target_85,
+                        max_passes=5,
+                    )
+                except RuntimeError as err:
+                    st.error(f"Variant B analysis failed: {err}")
+                    st.stop()
                 heat_b = generate_heatmap(img_b, sal_b)
                 clarity_b = compute_clarity_score(sal_b)
                 face_b = compute_face_pull(img_b, sal_b)
