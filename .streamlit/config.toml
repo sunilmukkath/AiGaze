@@ -1,0 +1,9 @@
+# Use a dedicated port so this app is not swapped with another Streamlit app on :8501.
+# Open: http://127.0.0.1:8510 after: streamlit run app.py
+
+[server]
+port = 8510
+address = "127.0.0.1"
+
+[browser]
+gatherUsageStats = false

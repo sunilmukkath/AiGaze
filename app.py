@@ -9,6 +9,7 @@ import os
 import shutil
 import string
 import tempfile
+from datetime import datetime, timezone
 import base64
 import time
 
@@ -84,11 +85,14 @@ except ImportError:
 
 # ── Page config ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="AI Gaze",
+    page_title="Elastic Tree AI Gaze",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
 # ── App password ─────────────────────────────────────────────
 _APP_PASSWORD = "elastic2026"
@@ -1532,7 +1536,7 @@ def arr_to_png_bytes(arr):
 def _pdf_safe(txt):
     """Replace Unicode chars not supported by PDF standard Helvetica font."""
     return (txt
-        .replace("\u2013", "-").replace("\u2014", "-")
+        .replace("\u2013", "-").replace("\u2014", "-").replace("\u2015", "-")
         .replace("\u2018", "'").replace("\u2019", "'")
         .replace("\u201c", '"').replace("\u201d", '"')
         .replace("\u00b7", ".").replace("\u2022", "-")
@@ -1556,103 +1560,429 @@ def colorbar_figure():
     return fig
 
 
+def _colorbar_horizontal_figure():
+    """Compact horizontal gradient strip for PDF heat-map legend."""
+    fig, ax = plt.subplots(figsize=(6.8, 0.55))
+    grad = np.linspace(1, 0, 256).reshape(1, 256)
+    ax.imshow(grad, aspect="auto", cmap=ATTENTION_CMAP, extent=[0, 256, 0, 1])
+    ax.set_xticks([0, 64, 128, 192, 256])
+    ax.set_xticklabels(["100%", "75%", "50%", "25%", "0%"], color="white", fontsize=7)
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_color("#1a1a2e")
+    fig.patch.set_facecolor("#080810")
+    ax.set_facecolor("#080810")
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.85, bottom=0.15)
+    return fig
+
+
+def _elastic_tree_logo_path():
+    for path in (
+        os.path.join(os.path.dirname(__file__), "elastic_tree_logo.png"),
+        os.path.join(os.path.dirname(__file__), "assets", "elastic_tree_logo.png"),
+    ):
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def _pdf_image_mm_size(path):
+    """Return (width_mm, height_mm) to preserve aspect ratio within a max box."""
+    with Image.open(path) as pil:
+        iw, ih = pil.size
+    if iw <= 0 or ih <= 0:
+        return (1.0, 1.0)
+    ar = ih / float(iw)
+    return (1.0, ar)
+
+
+def _pdf_place_image_fit(pdf, path, x_left, slot_w_mm, y_top, max_h_mm):
+    """
+    Draw image preserving aspect ratio inside [x_left, x_left + slot_w_mm] x max_h_mm.
+    Returns (used_width_mm, used_height_mm).
+    """
+    ar = _pdf_image_mm_size(path)[1]
+    w_mm = float(slot_w_mm)
+    h_mm = w_mm * ar
+    if h_mm > float(max_h_mm):
+        h_mm = float(max_h_mm)
+        w_mm = h_mm / max(ar, 1e-6)
+    cx = x_left + (float(slot_w_mm) - w_mm) / 2.0
+    pdf.image(path, x=cx, y=y_top, w=w_mm)
+    return (w_mm, h_mm)
+
+
+def _pdf_brand_header_banner(pdf):
+    pdf.set_fill_color(245, 166, 35)
+    pdf.rect(0, 0, 210, 2.8, "F")
+    pdf.set_fill_color(61, 53, 135)
+    pdf.rect(0, 2.8, 210, 2.0, "F")
+    pdf.set_fill_color(60, 191, 191)
+    pdf.rect(0, 4.8, 46, 1.3, "F")
+    pdf.set_fill_color(248, 250, 252)
+    pdf.rect(0, 6.1, 210, 16, "F")
+
+
+class ElasticTreePDF(FPDF):
+    """FPDF subclass with branded footer."""
+
+    def footer(self):
+        self.set_y(-12)
+        self.set_font("Helvetica", "", 7)
+        self.set_text_color(118, 128, 145)
+        self.cell(
+            0,
+            8,
+            _pdf_safe("Elastic Tree Research & Innovation") + "  |  AI Gaze"
+            + "  |  Page " + str(self.page_no()) + "/{nb}",
+            align="C",
+        )
+
+
+def _pdf_summarize_findings(meta, gaze_points):
+    """Short narrative bullets derived from quantitative results."""
+    if not isinstance(meta, dict):
+        return ["Run the analyzer to populate scores; upload a creative to regenerate this section."]
+    bullets = []
+    peak = float(meta.get("peak_pct") or 0)
+    clr = meta.get("clarity") or {}
+    clr_s = float(clr.get("score") or 0)
+    fp = meta.get("face_pull") or {}
+    bal = meta.get("balance") or {}
+    dist = float(bal.get("distraction") or 0)
+
+    scene = meta.get("components") or {}
+    scene_lab = str(scene.get("scene_type", "creative")).replace("_", " ").title()
+
+    tier_lab = str(meta.get("top_tier", "") or "").strip()
+    peak_bits = f"Peak attention tops out at about {peak:.0f}%"
+    bullets.append(peak_bits + (f" ({tier_lab})" if tier_lab else "") + f" for this {scene_lab} layout.")
+    if clr_s >= 65:
+        bullets.append("Clarity is strong: gaze is concentrated in a few coherent focal areas rather than splintered.")
+    elif clr_s >= 45:
+        bullets.append("Clarity is moderate: consider sharpening contrast or simplifying competing focal regions.")
+    else:
+        bullets.append("Clarity is on the lower side; attention may feel busy or fragmented on first glance.")
+
+    if gaze_points:
+        gx, gy, gp = gaze_points[0]
+        tier1 = "high" if gp >= 70 else "medium" if gp >= 40 else "low"
+        bullets.append(f"The predicted first fixation is near ({gx}, {gy}) with roughly {gp:.0f}% relative salience ({tier1}).")
+
+    fc = int(fp.get("count") or 0)
+    sh = float(fp.get("share") or 0)
+    if fc > 0:
+        bullets.append(f"About {sh:.1f}% of modeled attention aligns with detected faces ({fc} region(s)): expect strong human-centric pull.")
+
+    if dist >= 42:
+        bullets.append(
+            "Distraction is elevated - multiple secondary regions compete; trim visual noise near edges "
+            "if hierarchy matters."
+        )
+    elif dist <= 22:
+        bullets.append("Low distraction versus strong regions: hierarchy is comparatively clean for guided viewing.")
+
+    return bullets[:6]
+
+
 # ══════════════════════════════════════════════════════════════
 # PDF EXPORT
 # ══════════════════════════════════════════════════════════════
 
-def export_pdf(original, heatmap_img, hotspot_img, gaze_img,
-               aoi_img, aoi_results, gaze_points):
+def export_pdf(
+    original,
+    heatmap_img,
+    hotspot_img,
+    gaze_img,
+    aoi_img=None,
+    aoi_results=None,
+    gaze_points=None,
+    report_meta=None,
+):
     if not FPDF_AVAILABLE:
         return None
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=14)
+    gaze_points = gaze_points or []
+    aoi_results = aoi_results or []
+    meta = report_meta if isinstance(report_meta, dict) else {}
 
-    # Save images to temp files
+    pdf = ElasticTreePDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.alias_nb_pages()
+
     tmp = []
+
     def _save(arr):
         f = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         Image.fromarray(arr.astype(np.uint8)).save(f.name)
         tmp.append(f.name)
         return f.name
 
-    orig_p  = _save(original)
-    heat_p  = _save(heatmap_img)
-    hot_p   = _save(hotspot_img)
-    gaze_p  = _save(gaze_img)
-    aoi_p   = _save(aoi_img) if aoi_img is not None else None
-
     def clean_page():
         pdf.add_page()
-        # Top accent and simple header band.
-        pdf.set_fill_color(245, 166, 35)
-        pdf.rect(0, 0, 210, 3, "F")
-        pdf.set_fill_color(248, 250, 252)
-        pdf.rect(0, 3, 210, 17, "F")
+        _pdf_brand_header_banner(pdf)
 
-    def heading(title, subtitle=""):
-        pdf.set_xy(12, 8)
+    def heading(title, subtitle="", y=None):
+        y0 = y if y is not None else 10
+        pdf.set_xy(12, y0)
         pdf.set_font("Helvetica", "B", 15)
         pdf.set_text_color(24, 30, 42)
-        pdf.cell(0, 6, _pdf_safe(title), ln=True)
+        pdf.cell(0, 6.5, _pdf_safe(title), ln=True)
         if subtitle:
             pdf.set_x(12)
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(96, 106, 122)
-            pdf.cell(0, 5, _pdf_safe(subtitle), ln=True)
-        pdf.ln(4)
+            pdf.cell(0, 5.2, _pdf_safe(subtitle), ln=True)
+        pdf.ln(3)
 
-    def body(txt):
+    def body(txt, line_height=5.6):
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(65, 74, 86)
-        pdf.multi_cell(0, 5.5, _pdf_safe(txt))
+        pdf.set_x(12)
+        pdf.multi_cell(186, line_height, _pdf_safe(txt), new_x="LMARGIN", new_y="NEXT")
 
-    def image_block(path, y=55, h=130):
+    def bordered_image_row(path, y_start, slot_w_mm, max_h_mm):
+        w_u, h_u = _pdf_place_image_fit(pdf, path, 12, slot_w_mm, y_start + 2, max_h_mm - 4)
         pdf.set_draw_color(226, 232, 240)
         pdf.set_line_width(0.3)
-        pdf.rect(10, y - 2, 190, h + 4)
-        pdf.image(path, x=12, y=y, w=186, h=h)
+        x_c = 12 + (slot_w_mm - w_u) / 2 - 2
+        pdf.rect(max(10, x_c), y_start - 2, min(190.0, w_u + 4), h_u + 4)
+        return y_start + h_u + 10
 
-    # Cover
-    clean_page()
-    heading("AI GAZE REPORT", "Predictive visual attention analysis")
-    body("Generated by Elastic Tree AI Gaze. This report summarizes expected first-glance attention in the first 3 seconds.")
-    image_block(orig_p, y=46, h=140)
+    def dual_images_row(path_l, path_r, y_start, max_h_mm=88):
+        gap = 4.0
+        half_w = (186.0 - gap) / 2.0
+        sizes = []
 
-    # Heat map
-    clean_page()
-    heading("HEAT MAP", "Probability overlay of visual fixation")
+        def place(path, x_slot):
+            w_u, h_u = _pdf_place_image_fit(pdf, path, x_slot, half_w, y_start + 2, max_h_mm - 4)
+            sizes.append((w_u, h_u, x_slot))
+            return h_u
+
+        row_h = max(place(path_l, 12.0), place(path_r, 12.0 + half_w + gap))
+
+        pdf.set_draw_color(226, 232, 240)
+        pdf.set_line_width(0.3)
+        for w_u, h_u, x_slot in sizes:
+            x_c = x_slot + (half_w - w_u) / 2 - 2
+            pdf.rect(max(10, x_c), y_start - 2, min(half_w + 3.0, w_u + 4), h_u + 4)
+
+        return y_start + row_h + 12
+
+    orig_p = _save(original)
+    heat_p = _save(heatmap_img)
+    hot_p = _save(hotspot_img)
+    gaze_p = _save(gaze_img)
+    aoi_p = _save(aoi_img) if aoi_img is not None else None
+
+    top_o = _save(meta["top_overlay"]) if meta.get("top_overlay") is not None else None
+    bal_g = _save(meta["balance_grid"]) if meta.get("balance_grid") is not None else None
+    face_o = _save(meta["face_overlay"]) if meta.get("face_overlay") is not None else None
+
+    cbar_path = None
+    try:
+        fc = _colorbar_horizontal_figure()
+        cbar_tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        fc.savefig(cbar_tmp.name, dpi=160)
+        plt.close(fc)
+        cbar_path = cbar_tmp.name
+        tmp.append(cbar_path)
+    except Exception:
+        cbar_path = None
+
+    logo_png = _elastic_tree_logo_path()
+
+    # ── Cover ───────────────────────────────────────────────────
+    pdf.add_page()
+    _pdf_brand_header_banner(pdf)
+
+    yo = 9
+    if logo_png:
+        pdf.image(logo_png, x=14, y=yo, h=13)
+        yo += 15
+
+    pdf.set_xy(12, yo)
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_text_color(61, 53, 135)
+    pdf.cell(0, 7.5, _pdf_safe("AI Gaze"), ln=True)
+
+    pdf.set_x(12)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(24, 30, 42)
+    pdf.cell(0, 6.5, _pdf_safe("Visual Attention Intelligence Report"), ln=True)
+
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(96, 106, 122)
+    when = datetime.now(timezone.utc).strftime("%d %b %Y %H:%MZ")
+    pdf.cell(0, 5.5, _pdf_safe(f"Elastic Tree Research & Innovation  |  {when} UTC"), ln=True)
+    pdf.ln(5)
+
+    eng = meta.get("engine_label", "DeepGaze IIE")
+    Wm = meta.get("W") or original.shape[1]
+    Hm = meta.get("H") or original.shape[0]
     body(
-        "Higher intensity colors indicate stronger expected attention.\n"
-        "Use this view to verify whether the key brand elements sit in high-visibility zones."
+        f"This report summarizes predicted where viewers look in the first approximately 3 seconds, "
+        f"using Elastic Tree AI Gaze with {eng}. Canvas size logged as {int(Wm)} x {int(Hm)} px."
+        "\n\nIt is guidance for packaging, retail, poster, UI, or campaign creatives - "
+        "not a substitute for live eye tracking."
     )
-    image_block(heat_p, y=56, h=132)
+    bordered_image_row(orig_p, pdf.get_y(), 186, max_h_mm=146)
 
-    # Hot spot
+    # ── Metrics & narrative ───────────────────────────────────
     clean_page()
-    heading("HOT SPOT", "Tiered attention zones")
+    heading("Executive Metrics", "At-a-glance model outputs")
+    clr = meta.get("clarity") or {}
+    fp = meta.get("face_pull") or {}
+    bal = meta.get("balance") or {}
+    comp = meta.get("components") or {}
+    pk = meta.get("peak_pct", "")
+    sc = clr.get("score")
+    clarity_disp = (f"{float(sc):.1f} / 100" if isinstance(sc, (int, float)) else "-")
+
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(45, 55, 72)
+    pdf.cell(42, 7, "Metric", border=1)
+    pdf.cell(52, 7, "Value", border=1)
+    pdf.cell(86, 7, "Notes", border=1, ln=True)
+    pdf.set_font("Helvetica", "", 9)
+    rows_pdf = [
+        ("Peak attention", f"{pk}%", str(meta.get("top_tier", ""))),
+        ("Clarity score", clarity_disp, "Higher = fewer competing focal islands"),
+        ("Clarity contrast", f"{clr.get('contrast', 0):.1f}%", "Spread between peak and median salience"),
+        ("Focused area", f"{clr.get('focus_ratio', 0):.1f}%", "Share of canvas in top decile of salience"),
+        ("Face attention share", f"{fp.get('share', 0):.1f}%", f"Faces detected: {fp.get('count', 0)}"),
+        ("Center share", f"{bal.get('center_share', 0):.1f}%", "Attention inside central 50% box"),
+        ("Distraction index", f"{bal.get('distraction', 0):.1f}%", "Attention outside top 3 mass regions"),
+        ("Scene signal", str(comp.get("scene_type", "-")).replace("_", " "), "Model scene prior / routing"),
+    ]
+    for a, b, c in rows_pdf:
+        pdf.cell(42, 6.5, _pdf_safe(str(a)), border=1)
+        pdf.cell(52, 6.5, _pdf_safe(str(b)), border=1)
+        pdf.cell(86, 6.5, _pdf_safe(str(c)), border=1, ln=True)
+
+    pdf.ln(5)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(61, 53, 135)
+    pdf.cell(0, 6, _pdf_safe("Key insights"), ln=True)
+    pdf.ln(1)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(65, 74, 86)
+    for line in _pdf_summarize_findings(meta, gaze_points):
+        pdf.set_x(12)
+        pdf.multi_cell(186, 5.6, _pdf_safe(f"- {line}"), new_x="LMARGIN", new_y="NEXT")
+
+    # ── Heat map ────────────────────────────────────────────────
+    clean_page()
+    heading("Heat Map", "Probability overlay of visual fixation")
     body(
-        "Hot Spot simplifies attention into low, medium, and high regions.\n"
-        "Key assets such as logo, product, and CTA should ideally appear in high-attention regions."
+        "Warmer colours mean stronger expected viewing probability. "
+        "Use the strip below as a scale from 100% (left) to 0% (right) within the model output."
     )
-    image_block(hot_p, y=56, h=132)
+    y_heat = pdf.get_y()
+    y_heat = bordered_image_row(heat_p, y_heat, 186, max_h_mm=122)
+    if cbar_path:
+        pdf.set_font("Helvetica", "", 7)
+        pdf.set_text_color(120, 128, 145)
+        pdf.set_x(12)
+        pdf.cell(0, 4, _pdf_safe("Attention scale (model-relative)"), ln=True)
+        _pdf_place_image_fit(pdf, cbar_path, 12, 186, y_heat, max_h_mm=14)
+        y_heat += 16
 
-    # Gaze sequence
+    # ── Hot spot ────────────────────────────────────────────────
     clean_page()
-    heading("GAZE SEQUENCE", "Predicted first viewing order")
+    heading("Hot Spot", "Three-tier attention zones")
+    body(
+        "Red: roughly 70-100% band; green: 40-70%; blue: 0-40%. "
+        "Place logo, hero product, and primary CTA in red where possible."
+    )
+    bordered_image_row(hot_p, pdf.get_y(), 186, max_h_mm=122)
+
+    # ── Gaze sequence ───────────────────────────────────────────
+    clean_page()
+    heading("Gaze Sequence", "Predicted first viewing order")
     seq_lines = []
     fix_secs = estimate_fixation_seconds(gaze_points, total_seconds=3.0)
-    for i, (x, y, prob) in enumerate(gaze_points):
+    for i, (gx, gy, prob) in enumerate(gaze_points):
         tier = "HIGH" if prob >= 70 else "MEDIUM" if prob >= 40 else "LOW"
         sec = fix_secs[i] if i < len(fix_secs) else 0.0
-        seq_lines.append(f"Point {i+1}: ({x}, {y})  -  {prob:.0f}% ({tier})  -  {sec:.2f}s")
-    body("Top 4 predicted fixation points in a 3-second viewing window:\n" + "\n".join(seq_lines))
-    image_block(gaze_p, y=70, h=118)
+        seq_lines.append(f"Point {i+1}: ({gx}, {gy})  -  {prob:.0f}% ({tier})  -  {sec:.2f}s estimated dwell")
+    body(
+        "Top predicted fixation points in a 3-second viewing window (coordinates in pixels, origin top-left):\n"
+        + "\n".join(seq_lines)
+    )
+    bordered_image_row(gaze_p, pdf.get_y(), 186, max_h_mm=108)
 
-    # AOI (optional)
-    if aoi_p is not None and aoi_results:
+    # ── Clarity deep-dive ───────────────────────────────────────
+    clean_page()
+    heading("Clarity Deep-Dive", "How concentrated attention is on the creative")
+    body(
+        f"Composite clarity score: {clr.get('score', 0):.1f} / 100. "
+        f"Contrast: {clr.get('contrast', 0):.1f}% (spread between hottest pixel and median field). "
+        f"Peak salience in clarity pane: {clr.get('peak', 0):.1f}%."
+    )
+    body("Original (left) beside heat-map context (right):")
+    dual_images_row(orig_p, heat_p, pdf.get_y(), max_h_mm=78)
+
+    # ── Top regions ─────────────────────────────────────────────
+    if top_o:
         clean_page()
-        heading("AREA OF ATTENTION", "Manually selected regions and estimated visibility")
+        heading("Top Attention Regions", "Automated hotspots ranked by blended peak + mass")
+        te = meta.get("top_elements") or []
+        if te:
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_text_color(45, 55, 72)
+            pdf.cell(18, 6.5, "Rank", border=1)
+            pdf.cell(24, 6.5, "Peak %", border=1)
+            pdf.cell(24, 6.5, "Share %", border=1)
+            pdf.cell(26, 6.5, "Score", border=1)
+            pdf.cell(94, 6.5, "Notes", border=1, ln=True)
+            pdf.set_font("Helvetica", "", 9)
+            for e in te[:5]:
+                pdf.cell(
+                    18,
+                    6,
+                    _pdf_safe(str(e.get("rank", ""))),
+                    border=1,
+                )
+                pdf.cell(24, 6, _pdf_safe(str(e.get("peak", ""))), border=1)
+                pdf.cell(24, 6, _pdf_safe(str(e.get("share", ""))), border=1)
+                pdf.cell(26, 6, _pdf_safe(str(e.get("score", ""))), border=1)
+                pdf.cell(
+                    94,
+                    6,
+                    _pdf_safe("Highest detected mass in saliency blobs"),
+                    border=1,
+                    ln=True,
+                )
+            pdf.ln(3)
+        body("Original (left) and ranked overlay (right). Bounding boxes approximate dominant attention islands.")
+        dual_images_row(orig_p, top_o, pdf.get_y())
+
+    # ── Face pull ───────────────────────────────────────────────
+    if face_o:
+        clean_page()
+        heading("Faces & Figures", "Modeled pull toward detected faces")
+        body(
+            f"Approximately {fp.get('share', 0):.1f}% of summed salience overlaps face detections "
+            f"({fp.get('count', 0)} region(s)). Compare original vs boxed guidance."
+        )
+        dual_images_row(orig_p, face_o, pdf.get_y())
+
+    # ── Composition balance ────────────────────────────────────
+    if bal_g:
+        clean_page()
+        heading("Attention Balance & Composition", "Rule-of-thirds and centre frame")
+        body(
+            "Use the overlaid thirds grid plus gold centre frame when judging weight on left vs right or top vs bottom. "
+            f"Estimated left/right split: {bal.get('left_share', 0):.1f}% / {bal.get('right_share', 0):.1f}%. "
+            f"Top/bottom: {bal.get('top_share', 0):.1f}% / {bal.get('bottom_share', 0):.1f}%."
+        )
+        dual_images_row(orig_p, bal_g, pdf.get_y())
+
+    # ── AOI (optional) ───────────────────────────────────────────
+    if aoi_p and aoi_results:
+        clean_page()
+        heading("Area of Attention", "Manually selected regions and estimated visibility")
         body("User-defined areas with estimated visibility percentages:")
         pdf.ln(1)
         pdf.set_font("Helvetica", "B", 9)
@@ -1671,16 +2001,27 @@ def export_pdf(original, heatmap_img, hotspot_img, gaze_img,
             pdf.cell(24, 6, f"{r['peak']:.1f}%", border=1)
             pdf.cell(30, 6, tier, border=1)
             pdf.cell(95, 6, coords, border=1, ln=True)
-        image_block(aoi_p, y=106, h=84)
+        bordered_image_row(aoi_p, pdf.get_y(), 186, max_h_mm=88)
 
-    # Cleanup
+    # ── Method note ─────────────────────────────────────────────
+    clean_page()
+    heading("Method & Interpretation", "How to read Elastic Tree AI Gaze")
+    body(
+        "Models estimate saliency from pixels; scores are relative to this image, not population percentiles in a lab. "
+        "Combine with brand guidelines, channel constraints, and (where possible) calibration eye tracking. "
+        "For questions or study design, contact Elastic Tree Research & Innovation."
+    )
+
+    out = pdf.output(dest="S")
     for f in tmp:
         try:
             os.unlink(f)
         except OSError:
             pass
-
-    return bytes(pdf.output())
+    # Streamlit download_button requires immutable bytes(), not bytearray (fpdf2 returns bytearray sometimes).
+    if isinstance(out, str):
+        return bytes(out, "latin-1")
+    return bytes(out)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1796,7 +2137,7 @@ def _landing_page():
         "gap:6px;background:rgba(245,166,35,0.07);border:1px solid rgba(245,166,35,0.18);"
         "border-radius:24px;padding:4px 12px;margin-bottom:14px;"
         "font-size:0.68em;color:#F5A623;font-weight:600;letter-spacing:1px;'>"
-        "&#x2726; Predictive Eye Tracking"
+        "&#x2726; Elastic Tree &mdash; Predictive Eye Tracking"
         "</div><br style='line-height:0;'>"
         # Gradient headline
         "<div style='position:relative;z-index:1;font-family:Playfair Display,Space Grotesk,Inter,serif;"
@@ -1809,7 +2150,7 @@ def _landing_page():
         # Sub-label
         "<div style='position:relative;z-index:1;font-size:0.72em;color:#3CBFBF;"
         "font-weight:600;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;'>"
-        "Predictive Eye Tracking</div>"
+        "Elastic Tree &nbsp;&#183;&nbsp; Predictive Eye Tracking</div>"
         # Tagline
         "<div style='position:relative;z-index:1;font-size:0.9em;color:#8888b0;"
         "max-width:500px;margin:0 auto;line-height:1.5;'>"
@@ -1907,7 +2248,7 @@ def main():
             "margin-bottom:3px;flex-shrink:0;'></div>"
             "<div style='font-size:0.72em;color:#55557a;letter-spacing:3px;"
             "font-weight:500;text-transform:uppercase;'>"
-            "Predictive Eye Tracking</div>"
+            "Elastic Tree &nbsp;&#183;&nbsp; Predictive Eye Tracking</div>"
             "</div></div>",
             unsafe_allow_html=True,
         )
@@ -1924,7 +2265,7 @@ def main():
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # ── Upload zone + options row ─────────────────────────────
-    up_l, up_r = st.columns([3, 2], vertical_alignment="bottom")
+    up_l, up_r = st.columns([3, 2])
     with up_l:
         st.markdown(
             "<p class='section-title' style='margin-bottom:8px;'>Upload Creative</p>",
@@ -1998,7 +2339,11 @@ def main():
             )
         except RuntimeError as err:
             st.error(str(err))
-            st.info("This app is configured for DeepGaze-only inference. Ensure DeepGaze dependencies are installed.")
+            st.info(
+                "This usually happens when DeepGaze weights failed to download or Torch could not run the model. "
+                "On Python 3.13+, DeepGaze is often unavailable in requirements; use Python 3.11 or 3.12 with "
+                "`torch` and `deepgaze-pytorch` installed, or rely on Fallback Saliency after fixing checkpoints."
+            )
             st.stop()
         engine_label = components.get("engine", engine_label)
         heatmap_img  = generate_heatmap(img_np, sal_map)
@@ -2011,6 +2356,16 @@ def main():
         face_pull    = compute_face_pull(img_np, sal_map)
         balance      = compute_attention_balance(sal_map)
         balance_grid = draw_attention_balance_overlay(img_np)
+        face_overlay_pdf = img_np.copy()
+        if face_pull["count"]:
+            for (x, y, w_, h_) in face_pull["faces"]:
+                cv2.rectangle(
+                    face_overlay_pdf,
+                    (x, y),
+                    (x + w_, y + h_),
+                    (60, 191, 191),
+                    2,
+                )
 
     # ── Vertical metrics sidebar + Tabs ──────────────────────
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
@@ -2072,14 +2427,14 @@ def main():
                         "<p class='section-sub'>Uploaded reference</p>",
                         unsafe_allow_html=True,
                     )
-                    st.image(img_np, width="stretch")
+                    st.image(img_np, use_container_width=True)
                 with top_r:
                     st.markdown(
                         "<p class='section-title'>Heat Map</p>"
                         "<p class='section-sub'>Attention probability overlay</p>",
                         unsafe_allow_html=True,
                     )
-                    st.image(heatmap_img, width="stretch")
+                    st.image(heatmap_img, use_container_width=True)
 
                 st.markdown(
                     "<div class='action-point'><strong>Action Point &nbsp;—</strong> "
@@ -2146,14 +2501,14 @@ def main():
                     "<p class='section-sub'>Uploaded reference</p>",
                     unsafe_allow_html=True,
                 )
-                st.image(img_np, width="stretch")
+                st.image(img_np, use_container_width=True)
             with img_r:
                 st.markdown(
                     "<p class='section-title'>Hot Spot</p>"
                     "<p class='section-sub'>Three-tier attention zones</p>",
                     unsafe_allow_html=True,
                 )
-                st.image(hotspot_img, width="stretch")
+                st.image(hotspot_img, use_container_width=True)
 
             st.markdown(
                 "<div class='action-point'><strong>Action Point &nbsp;—</strong> "
@@ -2181,7 +2536,7 @@ def main():
                     "<p class='section-sub'>Top 4 predicted fixation points in a 3-second viewing window</p>",
                     unsafe_allow_html=True,
                 )
-                st.image(gaze_img, width="stretch")
+                st.image(gaze_img, use_container_width=True)
                 st.markdown(
                     "<div class='action-point'><strong>Action Point &nbsp;—</strong> "
                     "Your brand / key message should appear at positions "
@@ -2236,9 +2591,9 @@ def main():
                 )
                 a, b = st.columns(2)
                 with a:
-                    st.image(img_np, width="stretch")
+                    st.image(img_np, use_container_width=True)
                 with b:
-                    st.image(heatmap_img, width="stretch")
+                    st.image(heatmap_img, use_container_width=True)
             with right:
                 c1, c2 = st.columns(2)
                 c3, c4 = st.columns(2)
@@ -2263,9 +2618,9 @@ def main():
                 )
                 o1, o2 = st.columns(2)
                 with o1:
-                    st.image(img_np, width="stretch")
+                    st.image(img_np, use_container_width=True)
                 with o2:
-                    st.image(top_overlay, width="stretch")
+                    st.image(top_overlay, use_container_width=True)
             with rcol:
                 if top_elements:
                     rows = [{"Rank": e["rank"], "Peak %": e["peak"], "Share %": e["share"], "Score": e["score"]} for e in top_elements]
@@ -2317,9 +2672,9 @@ def main():
                     cv2.rectangle(face_overlay, (x, y), (x + w_, y + h_), (60, 191, 191), 2)
                 fo1, fo2 = st.columns(2)
                 with fo1:
-                    st.image(img_np, width="stretch")
+                    st.image(img_np, use_container_width=True)
                 with fo2:
-                    st.image(face_overlay, width="stretch")
+                    st.image(face_overlay, use_container_width=True)
 
         # ── TAB 7 — ATTENTION BALANCE ─────────────────────────
         with tab7:
@@ -2332,9 +2687,9 @@ def main():
                 )
                 g1, g2 = st.columns(2)
                 with g1:
-                    st.image(img_np, width="stretch")
+                    st.image(img_np, use_container_width=True)
                 with g2:
-                    st.image(balance_grid, width="stretch")
+                    st.image(balance_grid, use_container_width=True)
             with rcol:
                 b1, b2 = st.columns(2)
                 b3, b4 = st.columns(2)
@@ -2387,12 +2742,12 @@ def main():
                 va, vb = st.columns(2)
                 with va:
                     st.markdown("<p class='section-title'>Variant A</p>", unsafe_allow_html=True)
-                    st.image(heatmap_img, width="stretch")
+                    st.image(heatmap_img, use_container_width=True)
                 with vb:
                     st.markdown("<p class='section-title'>Variant B</p>", unsafe_allow_html=True)
-                    st.image(heat_b, width="stretch")
+                    st.image(heat_b, use_container_width=True)
 
-                st.dataframe(rows, width="stretch", hide_index=True)
+                st.dataframe(rows, use_container_width=True, hide_index=True)
                 st.success(f"Overall winner: Variant {overall}" if overall in ["A", "B"] else "Overall result: Tie")
             else:
                 st.info("Upload a second image to run A/B comparison.")
@@ -2406,7 +2761,7 @@ def main():
                     "<p class='section-sub'>Original image included in cover page</p>",
                     unsafe_allow_html=True,
                 )
-                st.image(img_np, width="stretch")
+                st.image(img_np, use_container_width=True)
                 st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
                 st.markdown(
                     "<div class='glass-card' style='text-align:center;padding:36px 32px;'>",
@@ -2417,7 +2772,8 @@ def main():
                     "<div style='font-size:1.15em;font-weight:800;color:#fff;"
                     "letter-spacing:1px;margin-bottom:8px;'>Full Analysis Report</div>"
                     "<div style='color:#8888a8;font-size:0.83em;line-height:1.8;margin-bottom:20px;'>"
-                    "Includes original image, heat map, hot spot &amp; gaze sequence"
+                    "Branded Elastic Tree deck: metrics, insights, heat map colour scale, clarity, top regions, "
+                    "faces, composition balance, and methodology"
                     "</div>",
                     unsafe_allow_html=True,
                 )
@@ -2428,10 +2784,15 @@ def main():
                         f"<div style='font-size:0.8em;color:#44BB77;'>"
                         f"&#10003; &nbsp; {label}</div>"
                         for label in [
-                            "Original image overview",
-                            "Heat map with colour scale",
-                            "Hot spot tier breakdown",
-                            "Gaze sequence &amp; coordinates",
+                            "Cover with Elastic Tree identity + timestamp",
+                            "Executive metrics table and narrative insights",
+                            "Heat map with horizontal attention scale",
+                            "Hot spot tier map and gaze path",
+                            "Clarity deep-dive with side-by-side context",
+                            "Top five attention regions (table + overlay)",
+                            "Face pull (when faces are detected)",
+                            "Composition balance grid and split metrics",
+                            "How to interpret + contact line",
                         ]
                     ])
                     + "</div>",
@@ -2443,8 +2804,30 @@ def main():
                     if st.button("Generate PDF Report", type="primary", use_container_width=True):
                         with st.spinner("Building report…"):
                             pdf_bytes = export_pdf(
-                                img_np, heatmap_img, hotspot_img, gaze_img,
-                                None, [], gaze_points,
+                                img_np,
+                                heatmap_img,
+                                hotspot_img,
+                                gaze_img,
+                                None,
+                                [],
+                                gaze_points,
+                                report_meta={
+                                    "peak_pct": peak_pct,
+                                    "top_tier": top_tier,
+                                    "clarity": clarity,
+                                    "face_pull": face_pull,
+                                    "balance": balance,
+                                    "top_elements": top_elements,
+                                    "components": components,
+                                    "engine_label": engine_label,
+                                    "W": W,
+                                    "H": H,
+                                    "top_overlay": top_overlay if top_elements else None,
+                                    "balance_grid": balance_grid,
+                                    "face_overlay": face_overlay_pdf
+                                    if face_pull["count"]
+                                    else None,
+                                },
                             )
                         if pdf_bytes:
                             st.success("Report ready!")
