@@ -1,9 +1,8 @@
-# Use a dedicated port so this app is not swapped with another Streamlit app on :8501.
-# Open: http://127.0.0.1:8510 after: streamlit run app.py
-
-[server]
-port = 8510
-address = "127.0.0.1"
+# Do not set server.port here: Streamlit Community Cloud expects the app on :8501
+# (health checks use http://localhost:8501/healthz). A custom port breaks deployment.
+#
+# Local: if another app already uses 8501, run:
+#   streamlit run app.py --server.port 8510
 
 [browser]
 gatherUsageStats = false
