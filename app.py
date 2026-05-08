@@ -1793,12 +1793,8 @@ def _pdf_brand_header_banner(pdf):
     # Colour rule stripes
     pdf.set_fill_color(245, 166, 35)
     pdf.rect(0, 0, 210, 2.8, "F")
-    pdf.set_fill_color(61, 53, 135)
-    pdf.rect(0, 2.8, 210, 2.0, "F")
-    pdf.set_fill_color(60, 191, 191)
-    pdf.rect(0, 4.8, 46, 1.3, "F")
     pdf.set_fill_color(248, 250, 252)
-    pdf.rect(0, 6.1, 210, 16, "F")
+    pdf.rect(0, 2.8, 210, 19.3, "F")
 
     # Header identity line: AI Gaze(TM)  |  Predictive Eye Tracking  |  Powered by  [ET logo]
     # Band occupies y=6.1 .. 22.1 (height 16mm); text row height = 5mm
