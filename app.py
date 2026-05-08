@@ -1650,7 +1650,7 @@ def arr_to_png_bytes(arr):
 
 def _pdf_safe(txt):
     """Replace Unicode chars not supported by PDF standard Helvetica font."""
-    return (txt
+    txt = (txt
         .replace("\u2013", "-").replace("\u2014", "-").replace("\u2015", "-")
         .replace("\u2018", "'").replace("\u2019", "'")
         .replace("\u201c", '"').replace("\u201d", '"')
@@ -1658,6 +1658,8 @@ def _pdf_safe(txt):
         .replace("\u00a0", " ").replace("\u2026", "...")
         .replace("\u2122", "(TM)").replace("\u00ae", "(R)")
     )
+    # Drop any remaining characters outside latin-1 (Helvetica's encoding range)
+    return txt.encode("latin-1", "replace").decode("latin-1")
 
 
 def colorbar_figure():
@@ -1993,7 +1995,7 @@ def _pdf_note_box(pdf, key: str, *, score_val: float | None = None) -> None:
     total_h = pad
     for _, txt, _ in lines:
         # Estimate lines needed for multi_cell
-        cw = pdf.get_string_width(txt)
+        cw = pdf.get_string_width(_pdf_safe(txt))
         nlines = max(1, int(cw / (w - pad * 2 - 18)) + 1)
         total_h += lh * nlines + 3
     total_h += pad
