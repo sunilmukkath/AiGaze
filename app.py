@@ -2000,11 +2000,6 @@ def _pdf_note_box(pdf, key: str, *, score_val: float | None = None) -> None:
         total_h += lh * nlines + 3
     total_h += pad
     y0 = pdf.get_y()
-    # Light box fill
-    pdf.set_fill_color(240, 243, 252)
-    pdf.set_draw_color(210, 218, 235)
-    pdf.set_line_width(0.2)
-    pdf.rect(x0, y0, w, total_h, "FD")
     # Content
     pdf.set_xy(x0 + pad, y0 + pad)
     for label, txt, rgb in lines:
