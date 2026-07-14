@@ -969,12 +969,31 @@ def _detect_faces(img):
             faces = []
 
     if not faces:
-        face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-        )
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-        for fx, fy, fw, fh in face_cascade.detectMultiScale(gray, 1.1, 4, minSize=(20, 20)):
-            faces.append((int(fx), int(fy), int(fw), int(fh)))
+        try:
+            cascade_path = None
+            cv_data = getattr(cv2, "data", None)
+            if cv_data is not None and hasattr(cv_data, "haarcascades"):
+                cascade_path = os.path.join(
+                    cv_data.haarcascades, "haarcascade_frontalface_default.xml"
+                )
+            if not cascade_path or not os.path.isfile(cascade_path):
+                # Some headless OpenCV builds omit cv2.data; resolve via package root.
+                pkg_root = os.path.dirname(getattr(cv2, "__file__", "") or "")
+                candidate = os.path.join(
+                    pkg_root, "data", "haarcascade_frontalface_default.xml"
+                )
+                if os.path.isfile(candidate):
+                    cascade_path = candidate
+            classifier_cls = getattr(cv2, "CascadeClassifier", None)
+            if cascade_path and os.path.isfile(cascade_path) and classifier_cls is not None:
+                face_cascade = classifier_cls(cascade_path)
+                gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+                for fx, fy, fw, fh in face_cascade.detectMultiScale(
+                    gray, 1.1, 4, minSize=(20, 20)
+                ):
+                    faces.append((int(fx), int(fy), int(fw), int(fh)))
+        except Exception:
+            faces = []
     return faces
 
 
@@ -2765,16 +2784,21 @@ def _landing_scroll_cue(focus: str) -> None:
     )
 
 
-def _render_et_site_nav() -> None:
-    """AI Gaze header — brand lockup + Contact Sales only."""
+def _render_et_site_nav(*, show_contact_sales: bool = True) -> None:
+    """AI Gaze header — brand lockup, optional Contact Sales."""
+    cta = (
+        "<a class='et-nav-cta' href='mailto:sunil@elastictree.com'>"
+        "Contact Sales</a>"
+        if show_contact_sales
+        else ""
+    )
     st.markdown(
         "<div class='et-site-nav'>"
         "<div style='display:flex;align-items:center;gap:12px;flex-wrap:wrap;'>"
         + _dual_brand_lockup(48, layout="left")
         + "</div>"
-        "<a class='et-nav-cta' href='mailto:sunil@elastictree.com'>"
-        "Contact Sales</a>"
-        "</div>"
+        + cta
+        + "</div>"
         "<div class='et-gold-rule'></div>",
         unsafe_allow_html=True,
     )
@@ -2805,7 +2829,17 @@ def _render_page_footer(*, show_signout: bool = False) -> None:
                 st.session_state.authenticated = False
                 st.session_state.landing_focus = "overview"
                 st.session_state.landing_bootstrapped = False
-                st.rerun()
+                st.markdown(
+                    "<script>(function(){try{"
+                    "window.top.location.href='https://www.elastictree.com/ai-gaze';"
+                    "}catch(e){try{"
+                    "window.parent.location.href='https://www.elastictree.com/ai-gaze';"
+                    "}catch(e2){"
+                    "window.location.href='https://www.elastictree.com/ai-gaze';"
+                    "}}})();</script>",
+                    unsafe_allow_html=True,
+                )
+                st.stop()
     else:
         st.markdown(footer_html, unsafe_allow_html=True)
 
@@ -3148,7 +3182,7 @@ def main():
         return
 
     # ── ET site chrome + product workspace ───────────────────
-    _render_et_site_nav()
+    _render_et_site_nav(show_contact_sales=False)
     st.markdown(
         "<div style='display:flex;align-items:center;justify-content:space-between;"
         "flex-wrap:wrap;gap:14px;padding:4px 2px 14px;'>"
