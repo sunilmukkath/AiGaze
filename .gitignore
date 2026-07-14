@@ -5,3 +5,10 @@ __pycache__/
 .streamlit/secrets.toml
 .streamlit/credentials.toml
 .vscode/
+node_modules/
+.next/
+apps/web/.env.local
+apps/web/.env
+.DS_Store
+*.log
+

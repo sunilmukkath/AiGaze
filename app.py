@@ -2723,12 +2723,12 @@ def _aigaze_wordmark(size="3.2rem", align="center"):
 
 
 def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
-    """Top chrome matching live Elastic Tree website nav."""
+    """Product menu bar — AI Gaze logo left; Elastic Tree lives in the footer."""
     links = [
         ("Home", "https://www.elastictree.com/"),
         ("Capabilities", "https://www.elastictree.com/capabilities"),
         ("Table Share", "https://www.elastictree.com/table-share"),
-        ("AI Gaze", "#"),
+        ("AI Gaze", "https://www.elastictree.com/ai-gaze"),
         ("Case Studies", "https://www.elastictree.com/casestudies"),
     ]
     link_html = "".join(
@@ -2742,10 +2742,10 @@ def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
     st.markdown(
         "<div class='et-site-nav'>"
         "<div style='display:flex;align-items:center;gap:12px;flex-wrap:wrap;'>"
-        + _et_wordmark("26px", "left")
+        + _aigaze_wordmark("34px", "left")
         + "</div>"
         f"<div class='et-nav-links'>{link_html}</div>"
-        "<a class='et-nav-cta' href='https://www.elastictree.com/' target='_blank' rel='noopener'>"
+        "<a class='et-nav-cta' href='https://www.elastictree.com/contact' target='_blank' rel='noopener'>"
         "Get in Touch</a>"
         "</div>"
         "<div class='et-gold-rule'></div>",
@@ -3115,13 +3115,10 @@ def main():
     st.markdown(
         "<div style='display:flex;align-items:center;justify-content:space-between;"
         "flex-wrap:wrap;gap:14px;padding:4px 2px 14px;'>"
-        "<div style='display:flex;align-items:center;gap:14px;flex-wrap:wrap;'>"
-        + _aigaze_wordmark("42px", "left")
-        + "<div style='color:#94a3b8;font-size:0.8em;line-height:1.35;'>"
+        "<div style='color:#94a3b8;font-size:0.8em;line-height:1.35;'>"
         "<div style='font-family:Outfit,DM Sans,sans-serif;font-weight:700;color:#f8fafc;"
-        "font-size:0.92em;'>Studio</div>"
+        "font-size:0.95em;'>Studio</div>"
         "Upload a creative · review attention · export PDF</div>"
-        "</div>"
         "<span class='et-product-badge'>Live product</span>"
         "</div>",
         unsafe_allow_html=True,
