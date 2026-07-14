@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, Eye, Layers, Target, FileText } from "lucide-react";
 import { ETHeader } from "@/components/et/ETHeader";
 import { ETFooter } from "@/components/et/ETFooter";
+import { ElasticTreeLogo } from "@/components/et/ElasticTreeLogo";
 import { AI_GAZE_STUDIO_URL, FEATURES, PRICING_PLANS } from "@/lib/product";
 
 export default function HomePage() {
@@ -21,6 +22,12 @@ export default function HomePage() {
                 <span className="et-brand-name text-xs tracking-wide">AI Gaze™</span>
               </span>
               <p className="et-section-label mb-4">Advanced Methods · Predictive Eye Tracking</p>
+              <div className="flex flex-wrap items-center gap-3 mb-5">
+                <span className="text-[0.7rem] font-mono uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                  An Elastic Tree product
+                </span>
+                <ElasticTreeLogo height={20} />
+              </div>
               <h1 className="et-display text-4xl md:text-[3.2rem] font-black leading-[1.08] tracking-tight mb-6 text-[var(--text-primary)]">
                 See what gets attention in the{" "}
                 <span className="et-gradient-text">first 3 seconds</span>.

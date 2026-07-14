@@ -182,7 +182,19 @@ def _aigaze_logo_path():
     return _normalize_aigaze_logo_file() or _find_aigaze_source_png()
 
 
-_AIGAZE_TAB_ICON_PATH = _aigaze_logo_path()
+def _aigaze_icon_path():
+    """Square product mark for browser tab / homepage icon."""
+    for path in (
+        os.path.join(_APP_ROOT_DIR, "aigaze_icon.png"),
+        os.path.join(_APP_ROOT_DIR, "apps", "web", "public", "favicon.png"),
+        os.path.join(_APP_ROOT_DIR, "apps", "web", "public", "aigaze-icon.png"),
+    ):
+        if os.path.isfile(path):
+            return path
+    return _aigaze_logo_path()
+
+
+_AIGAZE_TAB_ICON_PATH = _aigaze_icon_path()
 
 st.set_page_config(
     page_title="AI Gaze™ | Elastic Tree",
@@ -2726,7 +2738,7 @@ def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
     st.markdown(
         "<div class='et-site-nav'>"
         "<div style='display:flex;align-items:center;gap:12px;flex-wrap:wrap;'>"
-        + _aigaze_wordmark("52px", "left")
+        + _dual_brand_lockup(48, layout="left")
         + "</div>"
         f"<div class='et-nav-links'>{link_html}</div>"
         "<a class='et-nav-cta' href='mailto:sunil@elastictree.com'>"
@@ -2744,9 +2756,9 @@ def _render_page_footer(*, show_signout: bool = False) -> None:
         "<div style='border-top:1px solid rgba(255,255,255,0.08);padding-top:22px;margin-top:8px;'>"
         "<div style='display:flex;flex-direction:column;align-items:center;"
         "justify-content:center;gap:8px;padding:4px 0 8px;text-align:center;'>"
-        + _aigaze_wordmark("40px", "center")
+        + _dual_brand_lockup(40, layout="center")
         + "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:0.82em;"
-        "font-weight:600;color:#cbd5e1;margin-top:4px;'>AI Gaze&#8482; · Predictive Eye Tracking</div>"
+        "font-weight:600;color:#cbd5e1;margin-top:4px;'>AI Gaze&#8482; · An Elastic Tree product</div>"
         "<div style='font-size:0.72em;color:#94a3b8;'>"
         "<a href='mailto:sunil@elastictree.com' style='color:#e8a820;text-decoration:none;font-weight:600;'>"
         "sunil@elastictree.com</a>"
@@ -2826,8 +2838,14 @@ def _landing_page():
     st.markdown(
         "<div class='et-hero-wrap'>"
         "<div class='et-eyebrow'>Advanced Methods · Predictive Eye Tracking</div>"
-        "<div style='display:inline-block;margin:4px 0 8px;'>"
+        "<div style='display:inline-block;margin:4px 0 10px;'>"
         + _aigaze_wordmark("112px", "center")
+        + "</div>"
+        "<div style='display:flex;align-items:center;justify-content:center;gap:10px;"
+        "flex-wrap:wrap;margin:0 0 14px;'>"
+        "<span style='font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;"
+        "color:#94a3b8;font-family:DM Mono,monospace;'>An Elastic Tree product</span>"
+        + _et_wordmark("22px", "center")
         + "</div>"
         "<div class='et-hero-title'>See what gets attention in the "
         "<span>first 3 seconds</span>.</div>"

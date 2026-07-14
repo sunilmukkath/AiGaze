@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "./BrandLogo";
+import { ElasticTreeLogo } from "./ElasticTreeLogo";
 
 export function ETFooter() {
   return (
@@ -8,8 +9,14 @@ export function ETFooter() {
         <div className="grid md:grid-cols-3 gap-10 mb-12">
           <div>
             <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
-              <BrandLogo height={48} />
+              <BrandLogo height={48} showElasticTree={false} />
             </Link>
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="text-[0.65rem] font-mono uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                An Elastic Tree product
+              </span>
+              <ElasticTreeLogo height={20} />
+            </div>
             <p className="text-sm font-semibold text-[var(--amber-light)] mb-1">
               Predictive Eye Tracking
             </p>
@@ -42,7 +49,7 @@ export function ETFooter() {
           </div>
         </div>
         <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row justify-between text-sm gap-2">
-          <p>© 2026 AI Gaze™</p>
+          <p>© 2026 AI Gaze™ · Elastic Tree</p>
           <p>Predictive Eye Tracking</p>
         </div>
       </div>
