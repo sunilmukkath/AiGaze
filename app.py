@@ -482,10 +482,10 @@ div[data-testid="stDataFrame"] [role="gridcell"] {
     gap: 16px;
     flex-wrap: wrap;
     padding: 12px 4px 14px;
-    background: rgba(9,14,44,0.72);
-    border: 1px solid var(--et-line);
-    border-radius: 14px;
-    backdrop-filter: blur(14px);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    backdrop-filter: none;
     margin-bottom: 10px;
     padding-left: 14px;
     padding-right: 14px;
@@ -499,7 +499,6 @@ div[data-testid="stDataFrame"] [role="gridcell"] {
     border-radius: 8px;
 }
 .et-site-nav a:hover { color: #e8a820; }
-.et-nav-links { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .et-nav-cta {
     display: inline-flex;
     align-items: center;
@@ -2766,28 +2765,13 @@ def _landing_scroll_cue(focus: str) -> None:
     )
 
 
-def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
-    """AI Gaze product menu — no Elastic Tree website links."""
-    links = [
-        ("Overview", "#overview"),
-        ("Features", "#features"),
-        ("Pricing", "#pricing"),
-        ("Studio", "#studio"),
-    ]
-    link_html = "".join(
-        (
-            f"<a href='{href}' style='color:#e8a820;'>{lbl}</a>"
-            if lbl == active or (active == "AI Gaze" and lbl == "Overview")
-            else f"<a href='{href}'>{lbl}</a>"
-        )
-        for lbl, href in links
-    )
+def _render_et_site_nav() -> None:
+    """AI Gaze header — brand lockup + Contact Sales only."""
     st.markdown(
         "<div class='et-site-nav'>"
         "<div style='display:flex;align-items:center;gap:12px;flex-wrap:wrap;'>"
         + _dual_brand_lockup(48, layout="left")
         + "</div>"
-        f"<div class='et-nav-links'>{link_html}</div>"
         "<a class='et-nav-cta' href='mailto:sunil@elastictree.com'>"
         "Contact Sales</a>"
         "</div>"
@@ -2883,7 +2867,7 @@ def _landing_page():
     if "landing_bootstrapped" not in st.session_state:
         st.session_state.landing_bootstrapped = False
 
-    _render_et_site_nav(active="AI Gaze")
+    _render_et_site_nav()
 
     # ── Hero (Table Share pattern) — default starting view ───
     st.markdown(
@@ -3164,7 +3148,7 @@ def main():
         return
 
     # ── ET site chrome + product workspace ───────────────────
-    _render_et_site_nav(active="AI Gaze")
+    _render_et_site_nav()
     st.markdown(
         "<div style='display:flex;align-items:center;justify-content:space-between;"
         "flex-wrap:wrap;gap:14px;padding:4px 2px 14px;'>"
