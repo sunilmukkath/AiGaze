@@ -209,6 +209,22 @@ if "authenticated" not in st.session_state:
 # ── App password ─────────────────────────────────────────────
 _APP_PASSWORD = "elastic2026"
 
+# One-shot unlock from ET website sign-in (?access=…)
+try:
+    _access_raw = st.query_params.get("access", "")
+    if isinstance(_access_raw, (list, tuple)):
+        _access_q = _access_raw[0] if _access_raw else ""
+    else:
+        _access_q = str(_access_raw or "")
+except Exception:
+    _access_q = ""
+if _access_q and _access_q == _APP_PASSWORD:
+    st.session_state.authenticated = True
+    try:
+        del st.query_params["access"]
+    except Exception:
+        pass
+
 # ── Elastic Tree brand palette (live elastictree.com) ────────
 ET_PURPLE  = "#a78bfa"
 ET_TEAL    = "#2dd4bf"
@@ -2719,10 +2735,41 @@ def _aigaze_wordmark(size="3.2rem", align="center"):
     )
 
 
+def _landing_scroll_cue(focus: str) -> None:
+    """Scroll landing to section, or to hero when opening /#studio cold."""
+    if focus == "pricing":
+        target_js = (
+            "const el=doc.getElementById('pricing');"
+            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}"
+        )
+    elif focus == "access":
+        target_js = (
+            "const el=doc.getElementById('studio');"
+            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}"
+        )
+    else:
+        # Default start = ET /ai-gaze landing hero (not mid-page #studio sign-in).
+        target_js = (
+            "if(loc.hash==='#studio'){"
+            "window.parent.history.replaceState(null,'',loc.pathname+loc.search);"
+            "}"
+            "try{window.parent.scrollTo(0,0);}catch(e){}"
+            "try{doc.documentElement.scrollTop=0;doc.body.scrollTop=0;}catch(e){}"
+        )
+    st.markdown(
+        "<script>(function(){try{"
+        "const doc=window.parent.document;"
+        "const loc=window.parent.location;"
+        f"{target_js}"
+        "}catch(e){}})();</script>",
+        unsafe_allow_html=True,
+    )
+
+
 def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
     """AI Gaze product menu — no Elastic Tree website links."""
     links = [
-        ("Overview", "#"),
+        ("Overview", "#overview"),
         ("Features", "#features"),
         ("Pricing", "#pricing"),
         ("Studio", "#studio"),
@@ -2772,6 +2819,8 @@ def _render_page_footer(*, show_signout: bool = False) -> None:
         with fc_r:
             if st.button("Sign Out", use_container_width=False):
                 st.session_state.authenticated = False
+                st.session_state.landing_focus = "overview"
+                st.session_state.landing_bootstrapped = False
                 st.rerun()
     else:
         st.markdown(footer_html, unsafe_allow_html=True)
@@ -2831,12 +2880,14 @@ def _dual_brand_lockup(lockup_height_px=52, layout="center", **_ignored):
 def _landing_page():
     if "landing_focus" not in st.session_state:
         st.session_state.landing_focus = "overview"
+    if "landing_bootstrapped" not in st.session_state:
+        st.session_state.landing_bootstrapped = False
 
     _render_et_site_nav(active="AI Gaze")
 
-    # ── Hero (Table Share pattern) ───────────────────────────
+    # ── Hero (Table Share pattern) — default starting view ───
     st.markdown(
-        "<div class='et-hero-wrap'>"
+        "<div id='overview' class='et-hero-wrap'>"
         "<div class='et-eyebrow'>Advanced Methods · Predictive Eye Tracking</div>"
         "<div style='display:inline-block;margin:4px 0 10px;'>"
         + _aigaze_wordmark("112px", "center")
@@ -3094,18 +3145,20 @@ def _landing_page():
 
     _render_page_footer(show_signout=False)
 
-    # Soft scroll cue when user asked for pricing
-    if st.session_state.landing_focus == "pricing":
-        st.markdown(
-            "<script>const el=window.parent.document.getElementById('pricing');"
-            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}</script>",
-            unsafe_allow_html=True,
-        )
+    # Landing starts on Overview (ET /ai-gaze hero). Only jump to
+    # pricing / studio after an explicit CTA — not on cold /#studio opens.
+    focus = st.session_state.get("landing_focus", "overview")
+    if focus in {"pricing", "access"}:
+        _landing_scroll_cue(focus)
         st.session_state.landing_focus = "overview"
+        st.session_state.landing_bootstrapped = True
+    elif not st.session_state.landing_bootstrapped:
+        _landing_scroll_cue("overview")
+        st.session_state.landing_bootstrapped = True
 
 
 def main():
-    # ── Auth gate ─────────────────────────────────────────────
+    # ── Auth gate — unauthenticated users always get the ET landing ──
     if not st.session_state.get("authenticated", False):
         _landing_page()
         return
