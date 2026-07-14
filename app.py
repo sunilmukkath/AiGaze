@@ -212,60 +212,63 @@ if "authenticated" not in st.session_state:
 # ── App password ─────────────────────────────────────────────
 _APP_PASSWORD = "elastic2026"
 
-# ── Elastic Tree brand palette ───────────────────────────────
-ET_PURPLE  = "#3D3587"
-ET_TEAL    = "#3CBFBF"
-ET_BLUE    = "#5B8DD9"
-ET_GOLD    = "#F5A623"
-ET_GREEN   = "#44BB77"
+# ── Elastic Tree brand palette (live elastictree.com) ────────
+ET_PURPLE  = "#a78bfa"
+ET_TEAL    = "#2dd4bf"
+ET_BLUE    = "#38bdf8"
+ET_GOLD    = "#e8a820"
+ET_GREEN   = "#34d399"
+ET_NAVY    = "#0a1f4a"
 
 # Local DeepGaze-only inference options.
 SALIENCY_ENABLE_TTA = os.getenv("SALIENCY_ENABLE_TTA", "1").strip().lower() not in {"0", "false", "no"}
 
-# ── Custom CSS — Elastic Tree website / SaaS product template ──
+# ── Custom CSS — Elastic Tree website template (live site match) ──
 _CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=DM+Mono:wght@400;500&family=Outfit:wght@500;600;700;800;900&display=swap');
 
 :root {
-    --et-purple: #3D3587;
-    --et-teal: #3CBFBF;
-    --et-blue: #5B8DD9;
-    --et-gold: #F5A623;
-    --et-green: #44BB77;
-    --et-ink: #1B1F36;
-    --et-muted: #5C647A;
-    --et-line: #E4E8F0;
-    --et-soft: #F5F7FB;
-    --et-white: #FFFFFF;
+    --et-bg: #0a1f4a;
+    --et-navy: #090e2c;
+    --et-card: #103466;
+    --et-amber: #e8a820;
+    --et-amber-light: #f5c842;
+    --et-amber-deep: #c9920a;
+    --et-teal: #2dd4bf;
+    --et-teal-bright: #5eead4;
+    --et-cyan: #38bdf8;
+    --et-violet: #a78bfa;
+    --et-text: #f1f5f9;
+    --et-body: #e2e8f0;
+    --et-muted: #94a3b8;
+    --et-line: rgba(255,255,255,0.08);
 }
 
 * { box-sizing: border-box; }
 html, body, .stApp {
     background:
-        linear-gradient(180deg, #ffffff 0%, #f7f9fc 42%, #eef3f9 100%) !important;
-    color: var(--et-ink);
-    font-family: 'Manrope', sans-serif;
+        radial-gradient(900px 420px at 50% -8%, rgba(56,189,248,0.10), transparent 55%),
+        radial-gradient(700px 380px at 85% 18%, rgba(232,168,32,0.08), transparent 50%),
+        radial-gradient(700px 400px at 10% 60%, rgba(45,212,191,0.07), transparent 55%),
+        linear-gradient(180deg, #0a1f4a 0%, #0c2d5c 38%, #0a1f4a 72%, #090e2c 100%) !important;
+    color: var(--et-text);
+    font-family: 'DM Sans', sans-serif;
 }
 .block-container {
-    padding-top: 0.6rem !important;
-    padding-bottom: 2.4rem !important;
-    max-width: 1120px;
+    padding-top: 0.4rem !important;
+    padding-bottom: 2.8rem !important;
+    max-width: 1152px;
 }
-
-/* Hide default Streamlit chrome for a product-page feel */
 #MainMenu, footer, header { visibility: hidden; }
 [data-testid="stToolbar"] { display: none !important; }
 
-/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f0f3f8; }
-::-webkit-scrollbar-thumb { background: #c5cddd; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #9aa6c0; }
+::-webkit-scrollbar-track { background: #090e2c; }
+::-webkit-scrollbar-thumb { background: #145088; border-radius: 4px; }
 
-/* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
-    background: #ffffff !important;
+    background: rgba(16,52,102,0.72) !important;
     border: 1px solid var(--et-line) !important;
     border-radius: 12px !important;
     padding: 5px !important;
@@ -273,78 +276,65 @@ html, body, .stApp {
     display: flex !important;
     flex-wrap: wrap !important;
     overflow: visible !important;
-    box-shadow: 0 4px 18px rgba(27,31,54,0.04) !important;
 }
 .stTabs [data-baseweb="tab"] {
     color: var(--et-muted) !important;
     border-radius: 9px !important;
     padding: 9px 12px !important;
-    font-weight: 650;
+    font-weight: 600;
     font-size: 0.78em;
-    letter-spacing: 0.02em;
-    text-transform: none;
     background: transparent !important;
     border: 1px solid transparent !important;
     flex: 1 1 120px !important;
     justify-content: center !important;
 }
 .stTabs [data-baseweb="tab"]:hover {
-    color: var(--et-ink) !important;
-    background: var(--et-soft) !important;
+    color: var(--et-text) !important;
+    background: rgba(255,255,255,0.05) !important;
 }
 .stTabs [aria-selected="true"] {
-    color: var(--et-ink) !important;
-    background: #fff8ec !important;
-    border: 1px solid rgba(245,166,35,0.45) !important;
-    box-shadow: 0 2px 8px rgba(245,166,35,0.12) !important;
+    color: #0a1f4a !important;
+    background: linear-gradient(135deg, #f5c842, #e8a820) !important;
+    border: 1px solid rgba(232,168,32,0.55) !important;
 }
 .stTabs [data-baseweb="tab-panel"] { padding-top: 22px; }
 
-/* ── Primary button ── */
 .stButton > button {
-    background: var(--et-gold) !important;
-    color: #1b1f36 !important;
+    background: linear-gradient(135deg, #f5c842 0%, #e8a820 55%, #c9920a 100%) !important;
+    color: #0a1f4a !important;
     border: none !important;
-    border-radius: 8px;
-    font-family: 'Sora', 'Manrope', sans-serif;
-    font-weight: 700;
-    font-size: 0.9em;
-    letter-spacing: 0.01em;
-    padding: 11px 26px;
-    transition: all 0.15s ease;
+    border-radius: 999px !important;
+    font-family: 'Outfit', 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 0.88em !important;
+    padding: 11px 26px !important;
+    box-shadow: 0 8px 24px rgba(232,168,32,0.28);
+    transition: transform 0.15s, box-shadow 0.15s;
     width: 100%;
-    box-shadow: 0 6px 16px rgba(245,166,35,0.22);
 }
 .stButton > button:hover {
-    background: #ffb84d !important;
     transform: translateY(-1px);
-    box-shadow: 0 10px 22px rgba(245,166,35,0.28) !important;
+    box-shadow: 0 12px 28px rgba(232,168,32,0.36) !important;
 }
-.stButton > button:active { transform: translateY(0) !important; }
-
-/* ── Download button ── */
 .stDownloadButton > button {
-    background: #ffffff !important;
-    color: var(--et-ink) !important;
-    border: 1px solid var(--et-line) !important;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.84em;
-    padding: 8px 18px;
-    transition: all 0.15s;
+    background: rgba(16,52,102,0.75) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(148,163,184,0.28) !important;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    font-size: 0.84em !important;
+    padding: 8px 18px !important;
     width: auto !important;
 }
 .stDownloadButton > button:hover {
-    border-color: var(--et-gold) !important;
-    color: var(--et-ink) !important;
-    background: #fffaf0 !important;
+    border-color: #e8a820 !important;
+    color: #f5c842 !important;
 }
 
-/* ── Metrics ── */
 div[data-testid="metric-container"] {
-    background: #ffffff;
+    background: rgba(255,255,255,0.04);
     border: 1px solid var(--et-line);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 16px 14px;
 }
 div[data-testid="stMetricLabel"] {
@@ -355,82 +345,62 @@ div[data-testid="stMetricLabel"] {
     font-weight: 700;
 }
 div[data-testid="stMetricValue"] {
-    color: var(--et-ink) !important;
-    font-size: 1.55em !important;
+    color: var(--et-text) !important;
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 1.5em !important;
     font-weight: 800 !important;
 }
 
-/* ── File uploader ── */
 div[data-testid="stFileUploader"] {
-    background: #ffffff !important;
-    border: 1.5px dashed #cfd6e4 !important;
-    border-radius: 12px !important;
-    transition: border-color 0.2s, background 0.2s;
+    background: rgba(16,52,102,0.45) !important;
+    border: 1.5px dashed rgba(232,168,32,0.28) !important;
+    border-radius: 14px !important;
 }
 div[data-testid="stFileUploader"]:hover {
-    border-color: rgba(245,166,35,0.55) !important;
-    background: #fffaf0 !important;
+    border-color: rgba(232,168,32,0.55) !important;
+    background: rgba(232,168,32,0.06) !important;
 }
 div[data-testid="stFileUploaderDropzoneInstructions"] { color: var(--et-muted); }
-
-/* ── Alerts ── */
-div[data-testid="stAlert"] { border-radius: 10px; }
-
-/* ── Divider ── */
+div[data-testid="stAlert"] { border-radius: 12px; }
 hr { border-color: var(--et-line) !important; margin: 8px 0 !important; }
-
-/* ── Caption ── */
 .stCaption, small { color: var(--et-muted) !important; }
+section[data-testid="stSidebar"] { background: #090e2c; }
 
-/* ── Sidebar ── */
-section[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid var(--et-line); }
-
-/* ── Cards ── */
 .glass-card {
-    background: #ffffff;
+    background: rgba(255,255,255,0.04);
     border: 1px solid var(--et-line);
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 22px;
-    box-shadow: 0 8px 24px rgba(27,31,54,0.04);
-    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-}
-.glass-card:hover {
-    border-color: #d5dceb;
-    box-shadow: 0 12px 28px rgba(27,31,54,0.07);
-    transform: translateY(-1px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.18);
 }
 .top-note {
-    background: #ffffff;
+    background: rgba(16,52,102,0.55);
     border: 1px solid var(--et-line);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 16px 18px;
 }
 
-/* ── Tier badge ── */
-.tier-high   { color: #d94444; background: #fff1f1; border: 1px solid #f2c4c4; border-radius: 5px; padding: 2px 8px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
-.tier-medium { color: #c47d08; background: #fff6e8; border: 1px solid #f0d4a0; border-radius: 5px; padding: 2px 8px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
-.tier-low    { color: #3d6fbc; background: #eef4ff; border: 1px solid #c5d6f5; border-radius: 5px; padding: 2px 8px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+.tier-high   { color: #fb7185; background: rgba(251,113,133,0.12); border: 1px solid rgba(251,113,133,0.28); border-radius: 5px; padding: 2px 8px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+.tier-medium { color: #f5c842; background: rgba(232,168,32,0.12); border: 1px solid rgba(232,168,32,0.28); border-radius: 5px; padding: 2px 8px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+.tier-low    { color: #38bdf8; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.28); border-radius: 5px; padding: 2px 8px; font-size: 0.72em; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
 
-/* ── Action point ── */
 .action-point {
-    border-left: 3px solid var(--et-gold);
-    background: #fff9ef;
-    border-radius: 0 10px 10px 0;
+    border-left: 3px solid var(--et-amber);
+    background: rgba(232,168,32,0.08);
+    border-radius: 0 12px 12px 0;
     padding: 12px 16px;
     margin: 14px 0;
     font-size: 0.86em;
     color: var(--et-muted);
     line-height: 1.65;
 }
-.action-point strong { color: #b8780a; }
+.action-point strong { color: var(--et-amber-light); }
 
-/* ── Section heading ── */
 .section-title {
-    font-family: 'Sora', 'Manrope', sans-serif;
-    font-size: 0.95em;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.98em;
     font-weight: 700;
-    color: var(--et-ink);
-    letter-spacing: -0.01em;
+    color: var(--et-text);
     margin: 0 0 2px;
 }
 .section-sub {
@@ -439,178 +409,229 @@ section[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid 
     margin: 0 0 14px;
 }
 
-/* ── Feature chip ── */
 .feature-chip {
     display: inline-block;
-    background: #eef4ff;
-    border: 1px solid #d0dcf5;
-    color: #355a9a;
+    background: rgba(56,189,248,0.10);
+    border: 1px solid rgba(56,189,248,0.22);
+    color: #bae6fd;
     border-radius: 999px;
     padding: 5px 14px;
-    font-size: 0.78em;
+    font-size: 0.76em;
     font-weight: 600;
     margin: 3px 2px;
 }
-
-/* ── Gaze card ── */
 .gaze-card {
     border-radius: 12px;
     padding: 14px 16px;
     margin: 6px 0;
-    background: #ffffff;
+    background: rgba(255,255,255,0.04);
     border: 1px solid var(--et-line);
 }
 
-/* ── Text input ── */
 div[data-testid="stTextInput"] input {
-    background: #ffffff !important;
-    border: 1px solid #d5dceb !important;
-    border-radius: 9px !important;
-    color: var(--et-ink) !important;
+    background: rgba(16,52,102,0.55) !important;
+    border: 1px solid rgba(232,168,32,0.22) !important;
+    border-radius: 12px !important;
+    color: #f1f5f9 !important;
     padding: 12px 16px !important;
-    font-size: 0.95em !important;
 }
 div[data-testid="stTextInput"] input[type="password"] {
-    background: #ffffff !important;
-    border: 1px solid #d5dceb !important;
-    color: #1b1f36 !important;
-    -webkit-text-fill-color: #1b1f36 !important;
+    background: rgba(16,52,102,0.75) !important;
+    border: 1px solid rgba(232,168,32,0.28) !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
 }
 div[data-testid="stTextInput"] input:focus {
-    border-color: var(--et-gold) !important;
-    box-shadow: 0 0 0 3px rgba(245,166,35,0.15) !important;
+    border-color: #e8a820 !important;
+    box-shadow: 0 0 0 3px rgba(232,168,32,0.15) !important;
 }
 
-/* ── Dataframe / table theme ── */
 div[data-testid="stDataFrame"] {
     border: 1px solid var(--et-line) !important;
     border-radius: 12px !important;
     overflow: hidden !important;
-    background: #ffffff !important;
-}
-div[data-testid="stDataFrame"] [role="grid"] {
-    background: #ffffff !important;
-    color: var(--et-ink) !important;
+    background: rgba(16,52,102,0.55) !important;
 }
 div[data-testid="stDataFrame"] [role="columnheader"] {
-    background: #f3f6fb !important;
-    color: var(--et-ink) !important;
-    border-bottom: 1px solid var(--et-line) !important;
-    font-weight: 700 !important;
+    background: rgba(56,189,248,0.14) !important;
+    color: #f8fafc !important;
 }
 div[data-testid="stDataFrame"] [role="gridcell"] {
-    background: #ffffff !important;
-    color: #33405c !important;
-    border-bottom: 1px solid #eef1f6 !important;
-}
-div[data-testid="stDataFrame"] [role="row"]:hover [role="gridcell"] {
-    background: #f8fafc !important;
+    background: rgba(9,14,44,0.35) !important;
+    color: #e2e8f0 !important;
 }
 
-/* ── ET site chrome helpers ── */
+/* ET website chrome */
 .et-site-nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
-    padding: 14px 4px 12px;
-    border-bottom: 1px solid var(--et-line);
-    margin-bottom: 0;
+    padding: 12px 4px 14px;
+    background: rgba(9,14,44,0.72);
+    border: 1px solid var(--et-line);
+    border-radius: 14px;
+    backdrop-filter: blur(14px);
+    margin-bottom: 10px;
+    padding-left: 14px;
+    padding-right: 14px;
 }
 .et-site-nav a {
-    color: var(--et-muted);
+    color: #94a3b8;
     text-decoration: none;
-    font-size: 0.78em;
+    font-size: 0.8em;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    padding: 6px 10px;
+    border-radius: 8px;
 }
-.et-site-nav a:hover { color: var(--et-purple); }
-.et-nav-links { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.et-site-nav a:hover { color: #e8a820; }
+.et-nav-links { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.et-nav-cta {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #f5c842, #e8a820, #c9920a);
+    color: #0a1f4a !important;
+    font-family: Outfit, DM Sans, sans-serif;
+    font-weight: 700;
+    font-size: 0.78em !important;
+    padding: 8px 16px !important;
+    border-radius: 999px !important;
+}
 .et-gold-rule {
-    height: 3px;
+    height: 2px;
     width: 100%;
-    background: var(--et-gold);
+    background: linear-gradient(90deg, transparent, #e8a820, transparent);
     margin: 0 0 18px;
     border: 0;
+}
+.et-eyebrow {
+    display: inline-block;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #2dd4bf;
+    background: rgba(45,212,191,0.08);
+    border: 1px solid rgba(45,212,191,0.22);
+    border-radius: 999px;
+    padding: 5px 12px;
+    margin-bottom: 14px;
+}
+.et-hero-wrap { text-align: center; padding: 18px 8px 6px; }
+.et-hero-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(1.7rem, 4vw, 2.7rem);
+    font-weight: 900;
+    color: #f8fafc;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    max-width: 720px;
+    margin: 10px auto 12px;
+}
+.et-hero-title span {
+    background: linear-gradient(135deg, #f5c842, #e8a820, #d4920a);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.et-hero-sub {
+    font-size: clamp(0.95rem, 2vw, 1.08rem);
+    color: #cbd5e1;
+    line-height: 1.65;
+    max-width: 560px;
+    margin: 0 auto 8px;
+}
+.et-stat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--et-line);
+    border-radius: 14px;
+    padding: 16px 14px;
+    text-align: center;
+}
+.et-stat-val {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+    line-height: 1.1;
+}
+.et-stat-lbl {
+    color: #94a3b8;
+    font-size: 0.72em;
+    margin-top: 6px;
+    letter-spacing: 0.04em;
+}
+.et-feat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--et-line);
+    border-radius: 16px;
+    padding: 18px 16px;
+    height: 100%;
+    transition: border-color 0.2s, transform 0.15s;
+}
+.et-feat:hover {
+    border-color: rgba(255,255,255,0.16);
+    transform: translateY(-2px);
+}
+.et-section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #2dd4bf;
+    margin: 32px 0 14px;
+    text-align: center;
+}
+.et-signin-card, .et-price-card, .et-saas-shell, .et-cta-band {
+    background: rgba(16,52,102,0.55);
+    border: 1px solid var(--et-line);
+    border-radius: 18px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+}
+.et-signin-card { padding: 22px; text-align: center; }
+.et-price-card { padding: 22px 18px; height: 100%; position: relative; }
+.et-price-card.featured {
+    border-color: rgba(232,168,32,0.45);
+    background: linear-gradient(180deg, rgba(232,168,32,0.12), rgba(16,52,102,0.6));
+    box-shadow: 0 18px 44px rgba(232,168,32,0.12);
+}
+.et-price-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #f5c842, #e8a820);
+    color: #0a1f4a;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 999px;
+}
+.et-cta-band {
+    padding: 28px 22px;
+    text-align: center;
+    margin-top: 28px;
+    background:
+        radial-gradient(600px 180px at 50% 0%, rgba(232,168,32,0.14), transparent 70%),
+        rgba(16,52,102,0.55);
 }
 .et-product-badge {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: #fff8ec;
-    border: 1px solid rgba(245,166,35,0.35);
-    color: #9a6a12;
+    background: rgba(232,168,32,0.10);
+    border: 1px solid rgba(232,168,32,0.28);
+    color: #f5c842;
     border-radius: 999px;
     padding: 5px 12px;
-    font-size: 0.72em;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65em;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-}
-.et-saas-shell {
-    background: #ffffff;
-    border: 1px solid var(--et-line);
-    border-radius: 16px;
-    padding: 22px 22px 18px;
-    box-shadow: 0 10px 30px rgba(27,31,54,0.05);
-}
-.et-hero-wrap {
-    text-align: center;
-    padding: 28px 12px 8px;
-    position: relative;
-}
-.et-hero-kicker {
-    font-family: 'Sora', sans-serif;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--et-muted);
-    margin: 10px 0 18px;
-}
-.et-hero-title {
-    font-family: 'Sora', sans-serif;
-    font-size: clamp(1.35rem, 3.2vw, 1.85rem);
-    font-weight: 700;
-    color: var(--et-ink);
-    letter-spacing: -0.02em;
-    line-height: 1.25;
-    max-width: 640px;
-    margin: 0 auto 10px;
-}
-.et-hero-sub {
-    font-size: clamp(0.92rem, 2vw, 1.02rem);
-    color: var(--et-muted);
-    line-height: 1.55;
-    max-width: 520px;
-    margin: 0 auto 22px;
-}
-.et-feat {
-    background: #ffffff;
-    border: 1px solid var(--et-line);
-    border-radius: 14px;
-    padding: 18px 16px;
-    height: 100%;
-    box-shadow: 0 6px 18px rgba(27,31,54,0.03);
-}
-.et-signin-card {
-    background: #ffffff;
-    border: 1px solid var(--et-line);
-    border-radius: 16px;
-    padding: 22px;
-    text-align: center;
-    box-shadow: 0 12px 32px rgba(27,31,54,0.06);
-}
-.et-section-label {
-    font-family: 'Sora', sans-serif;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--et-purple);
-    margin: 28px 0 12px;
-    text-align: center;
 }
 </style>
 """
@@ -2575,14 +2596,14 @@ def _insight_html(key: str, *, score_val: float | None = None, label: str = "") 
     if key == "clarity" and score_val is not None:
         for lo, hi, rtag, rdesc in n.get("scale", []):
             if lo <= score_val <= hi:
-                col = "#44BB77" if lo >= 70 else "#F5A623" if lo >= 45 else "#E84040"
+                col = "#34d399" if lo >= 70 else "#e8a820" if lo >= 45 else "#fb7185"
                 rating_html = (
                     f"<div style='margin:6px 0 8px;display:inline-flex;align-items:center;"
-                    f"gap:8px;background:#ffffff;border:1px solid {col}55;"
+                    f"gap:8px;background:rgba(255,255,255,0.04);border:1px solid {col}55;"
                     f"border-radius:8px;padding:5px 12px;'>"
                     f"<span style='font-size:1.05em;font-weight:800;color:{col};'>{score_val:.0f}/100</span>"
                     f"<span style='color:{col};font-weight:700;font-size:0.82em;'>{rtag}</span>"
-                    f"<span style='color:#5C647A;font-size:0.78em;'>— {rdesc}</span>"
+                    f"<span style='color:#94a3b8;font-size:0.78em;'>— {rdesc}</span>"
                     f"</div>"
                 )
                 break
@@ -2591,9 +2612,9 @@ def _insight_html(key: str, *, score_val: float | None = None, label: str = "") 
     if how:
         rows += (
             f"<div style='margin-bottom:7px;'>"
-            f"<span style='color:#5C647A;font-size:0.82em;font-weight:700;letter-spacing:0.04em;'>"
+            f"<span style='color:#94a3b8;font-size:0.82em;font-weight:700;letter-spacing:0.04em;'>"
             f"HOW TO READ</span>"
-            f"<div style='color:#33405c;font-size:0.83em;margin-top:2px;line-height:1.55;'>{how}</div>"
+            f"<div style='color:#e2e8f0;font-size:0.83em;margin-top:2px;line-height:1.55;'>{how}</div>"
             f"</div>"
         )
     if rating_html:
@@ -2601,23 +2622,23 @@ def _insight_html(key: str, *, score_val: float | None = None, label: str = "") 
     if good:
         rows += (
             f"<div style='margin-bottom:5px;display:flex;gap:8px;align-items:flex-start;'>"
-            f"<span style='color:#2f9d5c;font-weight:700;font-size:0.85em;flex-shrink:0;'>✓ Good</span>"
-            f"<span style='color:#3a5a46;font-size:0.82em;line-height:1.5;'>{good}</span>"
+            f"<span style='color:#34d399;font-weight:700;font-size:0.85em;flex-shrink:0;'>✓ Good</span>"
+            f"<span style='color:#a7f3d0;font-size:0.82em;line-height:1.5;'>{good}</span>"
             f"</div>"
         )
     if nw:
         rows += (
             f"<div style='display:flex;gap:8px;align-items:flex-start;'>"
-            f"<span style='color:#c47d08;font-weight:700;font-size:0.85em;flex-shrink:0;'>⚠ Watch</span>"
-            f"<span style='color:#6a5428;font-size:0.82em;line-height:1.5;'>{nw}</span>"
+            f"<span style='color:#f5c842;font-weight:700;font-size:0.85em;flex-shrink:0;'>⚠ Watch</span>"
+            f"<span style='color:#fde68a;font-size:0.82em;line-height:1.5;'>{nw}</span>"
             f"</div>"
         )
 
     title = label or key.replace("_", " ").title()
     return (
-        f"<div style='background:#ffffff;border:1px solid #E4E8F0;"
+        f"<div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
         f"border-radius:12px;padding:14px 16px;margin-top:10px;'>"
-        f"<div style='font-size:0.72em;font-weight:700;color:#5C647A;letter-spacing:0.08em;"
+        f"<div style='font-size:0.72em;font-weight:700;color:#94a3b8;letter-spacing:0.08em;"
         f"text-transform:uppercase;margin-bottom:8px;'>How to read — {title}</div>"
         f"{rows}"
         f"</div>"
@@ -2702,17 +2723,17 @@ def _aigaze_wordmark(size="3.2rem", align="center"):
 
 
 def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
-    """Top chrome matching Elastic Tree website product pages."""
+    """Top chrome matching live Elastic Tree website nav."""
     links = [
         ("Home", "https://www.elastictree.com/"),
-        ("Services", "https://www.elastictree.com/services"),
-        ("Table Share", "https://www.elastictree.com/tableshare"),
+        ("Capabilities", "https://www.elastictree.com/capabilities"),
+        ("Table Share", "https://www.elastictree.com/table-share"),
         ("AI Gaze", "#"),
-        ("About", "https://www.elastictree.com/about-1"),
+        ("Case Studies", "https://www.elastictree.com/casestudies"),
     ]
     link_html = "".join(
         (
-            f"<a href='{href}' style='color:#3D3587;font-weight:750;'>{lbl}</a>"
+            f"<a href='{href}' style='color:#e8a820;'>{lbl}</a>"
             if lbl == active
             else f"<a href='{href}' target='_blank' rel='noopener'>{lbl}</a>"
         )
@@ -2720,11 +2741,12 @@ def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
     )
     st.markdown(
         "<div class='et-site-nav'>"
-        "<div style='display:flex;align-items:center;gap:14px;flex-wrap:wrap;'>"
-        + _et_wordmark("28px", "left")
-        + "<span class='et-product-badge'>Products · SaaS</span>"
-        "</div>"
+        "<div style='display:flex;align-items:center;gap:12px;flex-wrap:wrap;'>"
+        + _et_wordmark("26px", "left")
+        + "</div>"
         f"<div class='et-nav-links'>{link_html}</div>"
+        "<a class='et-nav-cta' href='https://www.elastictree.com/' target='_blank' rel='noopener'>"
+        "Get in Touch</a>"
         "</div>"
         "<div class='et-gold-rule'></div>",
         unsafe_allow_html=True,
@@ -2732,23 +2754,21 @@ def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
 
 
 def _render_page_footer(*, show_signout: bool = False) -> None:
-    """Shared footer for ET product pages."""
-    st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
+    """Footer aligned to Elastic Tree website."""
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
     footer_html = (
-        "<div style='border-top:1px solid #E4E8F0;padding-top:20px;margin-top:8px;'>"
+        "<div style='border-top:1px solid rgba(255,255,255,0.08);padding-top:22px;margin-top:8px;'>"
         "<div style='display:flex;flex-direction:column;align-items:center;"
-        "justify-content:center;gap:8px;padding:4px 0 10px;text-align:center;'>"
-        "<div style='font-family:Sora,Manrope,sans-serif;"
-        "font-size:0.78em;font-weight:650;color:#5C647A;letter-spacing:0.04em;'>"
-        "AI Gaze&#8482; &nbsp;&#183;&nbsp; Predictive Eye Tracking</div>"
-        "<div style='font-size:0.7em;color:#8a92a8;'>An Elastic Tree product</div>"
-        "<div style='margin-top:2px;'>"
-        + _et_wordmark("18px", "center")
-        + "</div>"
-        "<div style='font-size:0.68em;color:#9aa3b8;margin-top:4px;'>"
+        "justify-content:center;gap:8px;padding:4px 0 8px;text-align:center;'>"
+        + _et_wordmark("20px", "center")
+        + "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:0.82em;"
+        "font-weight:600;color:#cbd5e1;margin-top:4px;'>Smart Decisions, Simply Made.</div>"
+        "<div style='font-size:0.72em;color:#94a3b8;'>"
+        "AI Gaze&#8482; &nbsp;&#183;&nbsp; An Elastic Tree product</div>"
+        "<div style='font-size:0.68em;color:#64748b;margin-top:2px;'>"
         "<a href='https://www.elastictree.com/' target='_blank' rel='noopener' "
-        "style='color:#3D3587;text-decoration:none;font-weight:600;'>elastictree.com</a>"
-        "</div>"
+        "style='color:#e8a820;text-decoration:none;font-weight:600;'>elastictree.com</a>"
+        " &nbsp;·&nbsp; Chennai</div>"
         "</div></div>"
     )
     if show_signout:
@@ -2799,7 +2819,7 @@ def _dual_brand_lockup(lockup_height_px=52, layout="center", **_ignored):
     et_html = _et_wordmark(f"{et_px}px", et_align)
     bar = (
         "<div aria-hidden='true' style='width:1px;align-self:stretch;min-height:"
-        f"{h_px + 8}px;background:#E4E8F0;flex-shrink:0;margin:0 4px;'></div>"
+        f"{h_px + 8}px;background:rgba(255,255,255,0.14);flex-shrink:0;margin:0 4px;'></div>"
     )
     return (
         f"<div style='display:flex;align-items:center;justify-content:{justify};gap:16px;flex-wrap:wrap;'>"
@@ -2811,37 +2831,231 @@ def _dual_brand_lockup(lockup_height_px=52, layout="center", **_ignored):
 
 
 # ══════════════════════════════════════════════════════════════
-# LANDING PAGE  (ET website / SaaS product template)
+# LANDING PAGE  (ET website product template + SaaS pricing)
 # ══════════════════════════════════════════════════════════════
 
 def _landing_page():
+    if "landing_focus" not in st.session_state:
+        st.session_state.landing_focus = "overview"
+
     _render_et_site_nav(active="AI Gaze")
 
-    # Hero — brand first (Ai Gaze logo), one headline, one line, CTA
+    # ── Hero (Table Share pattern) ───────────────────────────
     st.markdown(
         "<div class='et-hero-wrap'>"
-        "<div style='display:inline-block;margin-bottom:6px;'>"
-        + _aigaze_wordmark("76px", "center")
+        "<div class='et-eyebrow'>Advanced Methods · Predictive Eye Tracking</div>"
+        "<div style='display:inline-block;margin:4px 0 8px;'>"
+        + _aigaze_wordmark("78px", "center")
         + "</div>"
-        "<div class='et-hero-kicker'>Predictive Eye Tracking · Elastic Tree SaaS</div>"
-        "<div class='et-hero-title'>See what gets attention in the first 3 seconds.</div>"
+        "<div class='et-hero-title'>See what gets attention in the "
+        "<span>first 3 seconds</span>.</div>"
         "<div class='et-hero-sub'>"
-        "Upload creatives, packs, and ads — get heat maps, hot spots, gaze path, "
-        "and a branded PDF report without hardware eye-tracking."
+        "AI Gaze&#8482; simulates first-glance vision for packs, ads, and digital creatives — "
+        "heat maps, hot spots, gaze path, and client-ready reports without hardware eye-tracking."
         "</div>"
         "</div>",
         unsafe_allow_html=True,
     )
 
-    # Sign-in card (product access)
-    _, sc, _ = st.columns([1.15, 1.7, 1.15])
+    cta1, cta2, cta3 = st.columns([1.1, 1.1, 1.1])
+    with cta1:
+        if st.button("Launch Studio →", type="primary", use_container_width=True, key="cta_launch"):
+            st.session_state.landing_focus = "access"
+            st.rerun()
+    with cta2:
+        if st.button("View Pricing", use_container_width=True, key="cta_pricing"):
+            st.session_state.landing_focus = "pricing"
+            st.rerun()
+    with cta3:
+        st.link_button(
+            "Book a Demo",
+            "https://www.elastictree.com/",
+            use_container_width=True,
+        )
+
+    # ── Proof stats ──────────────────────────────────────────
+    st.markdown("<div class='et-section-label'>Why teams use AI Gaze&#8482;</div>", unsafe_allow_html=True)
+    s1, s2, s3, s4 = st.columns(4)
+    for col, (val, color, lbl) in zip(
+        [s1, s2, s3, s4],
+        [
+            ("92%", ET_TEAL, "Predicted accuracy"),
+            ("~3s", ET_GOLD, "First-glance window"),
+            ("–60%", ET_BLUE, "vs hardware ET cost"),
+            ("24h", ET_PURPLE, "Typical turnaround"),
+        ],
+    ):
+        with col:
+            st.markdown(
+                f"<div class='et-stat'>"
+                f"<div class='et-stat-val' style='color:{color};'>{val}</div>"
+                f"<div class='et-stat-lbl'>{lbl}</div></div>",
+                unsafe_allow_html=True,
+            )
+
+    # ── Deliverables ─────────────────────────────────────────
+    st.markdown("<div class='et-section-label'>What you get</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='text-align:center;font-family:Outfit,DM Sans,sans-serif;"
+        "font-size:clamp(1.2rem,2.5vw,1.6rem);font-weight:800;color:#f8fafc;"
+        "margin:-4px 0 16px;'>Not a static check — a living attention workspace</div>",
+        unsafe_allow_html=True,
+    )
+    d1, d2, d3 = st.columns(3)
+    delivers = [
+        ("Heat Map & Hot Spots", "Where first-glance attention lands — HIGH / MEDIUM / LOW zones mapped to your creative."),
+        ("Gaze Path & Clarity", "Predicted fixation order in ~3 seconds, plus a focus score for visual hierarchy."),
+        ("Branded PDF Report", "Elastic Tree–ready deck for creative QA, client reviews, and planogram decisions."),
+    ]
+    for col, (title, desc) in zip([d1, d2, d3], delivers):
+        with col:
+            st.markdown(
+                f"<div class='et-feat'>"
+                f"<div style='font-family:Outfit,DM Sans,sans-serif;font-weight:700;"
+                f"color:#f8fafc;font-size:0.95em;margin-bottom:8px;'>{title}</div>"
+                f"<div style='color:#94a3b8;font-size:0.82em;line-height:1.55;'>{desc}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+    # ── Applications ─────────────────────────────────────────
+    st.markdown("<div class='et-section-label'>Built for</div>", unsafe_allow_html=True)
+    apps = [
+        ("Packaging", "Pack shots & redesign QA"),
+        ("Retail / Shelf", "Planogram & POS attention"),
+        ("Advertising", "Print, OOH, digital ads"),
+        ("Digital UX", "Landing pages & emails"),
+        ("Logo & Brand", "Symbol / lockup saliency"),
+        ("Menus & Offers", "Price / CTA visibility"),
+    ]
+    a1, a2, a3 = st.columns(3)
+    a4, a5, a6 = st.columns(3)
+    for col, (title, desc) in zip([a1, a2, a3, a4, a5, a6], apps):
+        with col:
+            st.markdown(
+                f"<div class='et-feat' style='padding:14px;'>"
+                f"<div style='font-family:Outfit,DM Sans,sans-serif;font-weight:700;"
+                f"color:#f5c842;font-size:0.86em;margin-bottom:4px;'>{title}</div>"
+                f"<div style='color:#94a3b8;font-size:0.76em;line-height:1.45;'>{desc}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+    # ── Pricing ──────────────────────────────────────────────
+    st.markdown(
+        "<div id='pricing' class='et-section-label'>Pricing</div>"
+        "<div style='text-align:center;font-family:Outfit,DM Sans,sans-serif;"
+        "font-size:clamp(1.25rem,2.6vw,1.7rem);font-weight:800;color:#f8fafc;"
+        "margin:-4px 0 6px;'>Choose how your team uses AI Gaze&#8482;</div>"
+        "<div style='text-align:center;color:#94a3b8;font-size:0.85em;margin-bottom:18px;'>"
+        "Transparent SaaS plans · Custom research retainers available via Elastic Tree</div>",
+        unsafe_allow_html=True,
+    )
+
+    plans = [
+        {
+            "name": "Starter",
+            "price": "₹2,999",
+            "period": "/ month",
+            "blurb": "For freelancers and small teams testing a few creatives each month.",
+            "features": [
+                "20 analyses / month",
+                "Heat map, hot spot, gaze path",
+                "Clarity & top elements",
+                "PDF report export",
+                "Email support",
+            ],
+            "cta": "Start Starter",
+            "featured": False,
+            "key": "plan_starter",
+        },
+        {
+            "name": "Growth",
+            "price": "₹7,999",
+            "period": "/ month",
+            "blurb": "For brands and agencies running regular creative & pack QA.",
+            "features": [
+                "80 analyses / month",
+                "Everything in Starter",
+                "A/B variant compare",
+                "Face pull & attention balance",
+                "Priority support · shared seats (3)",
+            ],
+            "cta": "Choose Growth",
+            "featured": True,
+            "key": "plan_growth",
+        },
+        {
+            "name": "Enterprise",
+            "price": "Custom",
+            "period": "from ₹19,999/mo",
+            "blurb": "For multi-brand teams needing volume, SLAs, and white-label.",
+            "features": [
+                "Unlimited / high-volume credits",
+                "Team seats & SSO (on request)",
+                "API / batch workflow options",
+                "White-label PDF branding",
+                "Dedicated Elastic Tree researcher",
+            ],
+            "cta": "Talk to Sales",
+            "featured": False,
+            "key": "plan_enterprise",
+        },
+    ]
+
+    pcols = st.columns(3)
+    for col, plan in zip(pcols, plans):
+        with col:
+            feat_class = "et-price-card featured" if plan["featured"] else "et-price-card"
+            badge = "<div class='et-price-badge'>Popular</div>" if plan["featured"] else ""
+            feats = "".join(
+                f"<div style='font-size:0.8em;color:#cbd5e1;padding:5px 0;"
+                f"border-bottom:1px solid rgba(255,255,255,0.06);'>"
+                f"<span style='color:#2dd4bf;margin-right:6px;'>✓</span>{f}</div>"
+                for f in plan["features"]
+            )
+            st.markdown(
+                f"<div class='{feat_class}'>{badge}"
+                f"<div style='font-family:DM Mono,monospace;font-size:0.68rem;letter-spacing:0.12em;"
+                f"text-transform:uppercase;color:#2dd4bf;margin-bottom:8px;'>{plan['name']}</div>"
+                f"<div style='font-family:Outfit,sans-serif;font-weight:900;font-size:1.85rem;"
+                f"color:#f8fafc;line-height:1;'>{plan['price']}"
+                f"<span style='font-size:0.45em;font-weight:600;color:#94a3b8;'>"
+                f" {plan['period']}</span></div>"
+                f"<div style='color:#94a3b8;font-size:0.78em;margin:10px 0 14px;line-height:1.45;'>"
+                f"{plan['blurb']}</div>{feats}</div>",
+                unsafe_allow_html=True,
+            )
+            if st.button(plan["cta"], use_container_width=True, key=plan["key"],
+                         type="primary" if plan["featured"] else "secondary"):
+                st.session_state.selected_plan = plan["name"]
+                st.session_state.landing_focus = "access"
+                st.rerun()
+
+    st.markdown(
+        "<div style='text-align:center;color:#64748b;font-size:0.75em;margin-top:10px;'>"
+        "Prices in INR · Annual billing discounts on Growth &amp; Enterprise · "
+        "Custom pack / shelf studies quoted separately by Elastic Tree</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Access / sign-in ─────────────────────────────────────
+    st.markdown("<div class='et-section-label'>Client access</div>", unsafe_allow_html=True)
+    if st.session_state.get("selected_plan"):
+        st.markdown(
+            f"<div style='text-align:center;color:#f5c842;font-size:0.82em;margin-bottom:8px;'>"
+            f"Selected plan: <strong>{st.session_state.selected_plan}</strong> — "
+            f"sign in to open the studio, or book a demo to activate billing.</div>",
+            unsafe_allow_html=True,
+        )
+    _, sc, _ = st.columns([1.05, 1.9, 1.05])
     with sc:
         st.markdown(
             "<div class='et-signin-card'>"
-            "<div style='font-family:Sora,Manrope,sans-serif;font-size:1em;font-weight:700;"
-            "color:#1B1F36;margin-bottom:4px;'>Open AI Gaze</div>"
-            "<div style='color:#5C647A;font-size:0.8em;margin-bottom:14px;'>"
-            "Client access for Elastic Tree subscribers</div>",
+            "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:1.05em;font-weight:700;"
+            "color:#f8fafc;margin-bottom:4px;'>Open AI Gaze Studio</div>"
+            "<div style='color:#94a3b8;font-size:0.8em;margin-bottom:14px;'>"
+            "Password access for active Elastic Tree subscribers</div>",
             unsafe_allow_html=True,
         )
         pwd = st.text_input(
@@ -2849,78 +3063,45 @@ def _landing_page():
             type="password",
             placeholder="Enter access password",
             label_visibility="collapsed",
+            key="landing_pwd",
         )
-        if st.button("Launch app →", type="primary", use_container_width=True):
+        if st.button("Sign in to Studio →", type="primary", use_container_width=True, key="landing_signin"):
             if pwd == _APP_PASSWORD:
                 st.session_state.authenticated = True
                 st.rerun()
             else:
                 st.error("Incorrect password. Please try again.")
         st.markdown(
-            "<div style='color:#8a92a8;font-size:0.72em;margin-top:14px;'>"
-            "Use from elastictree.com · Secure workspace</div></div>",
+            "<div style='color:#64748b;font-size:0.72em;margin-top:12px;'>"
+            "Need a seat? "
+            "<a href='https://www.elastictree.com/' target='_blank' rel='noopener' "
+            "style='color:#e8a820;text-decoration:none;font-weight:600;'>Talk to Elastic Tree</a>"
+            "</div></div>",
             unsafe_allow_html=True,
         )
 
-    # Insights strip (matches ET product storytelling)
+    # ── Closing CTA band ─────────────────────────────────────
     st.markdown(
-        "<div class='et-section-label'>What you get</div>",
-        unsafe_allow_html=True,
-    )
-    c1, c2, c3 = st.columns(3)
-    strips = [
-        ("Heat Map & Hot Spots", "See where first-glance attention lands and which zones are HIGH / MEDIUM / LOW."),
-        ("Gaze Path & Clarity", "Predict fixation order in ~3 seconds and score how focused the creative is."),
-        ("Branded PDF Report", "Export a client-ready Elastic Tree deck for reviews and creative QA."),
-    ]
-    for col, (title, desc) in zip([c1, c2, c3], strips):
-        with col:
-            st.markdown(
-                f"<div class='et-feat'>"
-                f"<div style='font-family:Sora,Manrope,sans-serif;font-weight:700;"
-                f"color:#1B1F36;font-size:0.92em;margin-bottom:6px;'>{title}</div>"
-                f"<div style='color:#5C647A;font-size:0.8em;line-height:1.5;'>{desc}</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-
-    st.markdown(
-        "<div class='et-section-label'>Built for</div>",
-        unsafe_allow_html=True,
-    )
-    f1, f2, f3 = st.columns(3)
-    f4, f5, f6 = st.columns(3)
-    feat_data = [
-        ("Digital", ET_TEAL, "Web, email, content, brochures"),
-        ("Pack & Retail", ET_GOLD, "Pack shots, shelf, signage"),
-        ("Ads", ET_BLUE, "Print, OOH, posters, vehicle"),
-        ("Heat Map", ET_PURPLE, "Attention probability overlay"),
-        ("Gaze Sequence", "#2f9d5c", "First 4 predicted fixations"),
-        ("Compare", "#c47d08", "A/B variant attention score"),
-    ]
-    for col, (title, color, desc) in zip([f1, f2, f3, f4, f5, f6], feat_data):
-        with col:
-            st.markdown(
-                f"<div class='et-feat' style='padding:14px;'>"
-                f"<div style='width:8px;height:8px;border-radius:50%;background:{color};"
-                f"margin-bottom:10px;'></div>"
-                f"<div style='font-family:Sora,Manrope,sans-serif;font-weight:700;"
-                f"color:#1B1F36;font-size:0.84em;margin-bottom:4px;'>{title}</div>"
-                f"<div style='color:#5C647A;font-size:0.75em;line-height:1.45;'>{desc}</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-
-    st.markdown(
-        "<div style='text-align:center;margin:28px 0 4px;color:#5C647A;font-size:0.82em;"
-        "line-height:1.55;max-width:560px;margin-left:auto;margin-right:auto;'>"
-        "Scientifically grounded predictive modelling for pre-attentive vision — "
-        "a fraction of the cost of hardware eye-tracking research."
+        "<div class='et-cta-band'>"
+        "<div style='font-family:Outfit,sans-serif;font-weight:900;font-size:clamp(1.2rem,2.5vw,1.65rem);"
+        "color:#f8fafc;margin-bottom:8px;'>If attention fails in 3 seconds, the creative fails.</div>"
+        "<div style='color:#94a3b8;font-size:0.88em;max-width:520px;margin:0 auto 4px;line-height:1.55;'>"
+        "AI Gaze&#8482; isn’t just a heatmap — it’s your roadmap to clearer hierarchy for packs, "
+        "shelves, and campaigns.</div>"
         "</div>",
         unsafe_allow_html=True,
     )
 
     _render_page_footer(show_signout=False)
+
+    # Soft scroll cue when user asked for pricing
+    if st.session_state.landing_focus == "pricing":
+        st.markdown(
+            "<script>const el=window.parent.document.getElementById('pricing');"
+            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}</script>",
+            unsafe_allow_html=True,
+        )
+        st.session_state.landing_focus = "overview"
 
 
 def main():
@@ -2936,8 +3117,8 @@ def main():
         "flex-wrap:wrap;gap:14px;padding:4px 2px 14px;'>"
         "<div style='display:flex;align-items:center;gap:14px;flex-wrap:wrap;'>"
         + _aigaze_wordmark("42px", "left")
-        + "<div style='color:#5C647A;font-size:0.8em;line-height:1.35;'>"
-        "<div style='font-family:Sora,Manrope,sans-serif;font-weight:700;color:#1B1F36;"
+        + "<div style='color:#94a3b8;font-size:0.8em;line-height:1.35;'>"
+        "<div style='font-family:Outfit,DM Sans,sans-serif;font-weight:700;color:#f8fafc;"
         "font-size:0.92em;'>Studio</div>"
         "Upload a creative · review attention · export PDF</div>"
         "</div>"
@@ -2947,7 +3128,7 @@ def main():
     )
 
     # ── Upload zone + options row ─────────────────────────────
-    st.markdown("<div class='et-saas-shell'>", unsafe_allow_html=True)
+    st.markdown("<div class='et-saas-shell' style='padding:20px;'>", unsafe_allow_html=True)
     up_l, up_r = st.columns([3, 2])
     with up_l:
         st.markdown(
@@ -2960,13 +3141,13 @@ def main():
             label_visibility="collapsed",
         )
         st.markdown(
-            "<div style='color:#5C647A;font-size:0.75em;margin-top:2px;'>JPG · PNG · WebP · BMP</div>",
+            "<div style='color:#94a3b8;font-size:0.75em;margin-top:2px;'>JPG · PNG · WebP · BMP</div>",
             unsafe_allow_html=True,
         )
     with up_r:
         st.markdown(
-            "<div class='top-note' style='text-align:left;color:#5C647A;font-size:0.8em;'>"
-            "<strong style='color:#1B1F36;font-size:0.95em;'>Workflow</strong><br>"
+            "<div class='top-note' style='text-align:left;color:#94a3b8;font-size:0.8em;'>"
+            "<strong style='color:#f8fafc;font-size:0.95em;'>Workflow</strong><br>"
             "Upload once, then review each analysis from the tabs below."
             "<br>Export a branded PDF from the Report tab."
             "</div>",
@@ -2979,11 +3160,12 @@ def main():
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
         st.markdown(
             "<div style='text-align:center;padding:36px 24px;"
-            "border:1px dashed #cfd6e4;border-radius:14px;background:#fafbfd;'>"
-            "<div style='font-family:Sora,Manrope,sans-serif;font-size:1.15em;"
-            "font-weight:700;color:#1B1F36;margin-bottom:8px;'>"
+            "border:1px dashed rgba(232,168,32,0.28);border-radius:14px;"
+            "background:rgba(255,255,255,0.03);'>"
+            "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:1.15em;"
+            "font-weight:700;color:#f8fafc;margin-bottom:8px;'>"
             "Upload an image to analyse</div>"
-            "<div style='color:#5C647A;font-size:0.86em;margin-bottom:20px;"
+            "<div style='color:#94a3b8;font-size:0.86em;margin-bottom:20px;"
             "line-height:1.6;'>Predicts where people look in the first 3 seconds</div>"
             "<div style='display:flex;justify-content:center;flex-wrap:wrap;gap:6px;'>"
             "<span class='feature-chip'>Heat Map</span>"
@@ -3059,19 +3241,19 @@ def main():
 
     metric_items = [
         ("Peak Attention", f"{peak_pct}%", tier_color),
-        ("Clarity Score", f"{clarity['score']:.1f}", "#C47D08"),
-        ("Scene", str(components.get("scene_type", "editorial")).replace("_", " ").title(), "#3D3587"),
-        ("Face Pull", f"{face_pull['share']:.1f}%", "#1F9E9E"),
-        ("Distraction", f"{balance['distraction']:.1f}%", "#C45A5A"),
-        ("Faces", "Yes" if components.get("face_found") else "No", "#2F9D5C" if components.get("face_found") else "#8A92A8"),
-        ("Size", f"{W}×{H}", "#3D6FBC"),
+        ("Clarity Score", f"{clarity['score']:.1f}", ET_GOLD),
+        ("Scene", str(components.get("scene_type", "editorial")).replace("_", " ").title(), ET_PURPLE),
+        ("Face Pull", f"{face_pull['share']:.1f}%", ET_TEAL),
+        ("Distraction", f"{balance['distraction']:.1f}%", "#fb7185"),
+        ("Faces", "Yes" if components.get("face_found") else "No", ET_GREEN if components.get("face_found") else "#94a3b8"),
+        ("Size", f"{W}×{H}", ET_BLUE),
     ]
     mcols = st.columns(len(metric_items))
     for col, (lbl, val, color) in zip(mcols, metric_items):
         with col:
             st.markdown(
                 f"<div class='glass-card' style='padding:12px 14px;'>"
-                f"<div style='color:#5C647A;font-size:0.63em;text-transform:uppercase;letter-spacing:1px;font-weight:700;'>{lbl}</div>"
+                f"<div style='color:#94a3b8;font-size:0.63em;text-transform:uppercase;letter-spacing:1px;font-weight:700;'>{lbl}</div>"
                 f"<div style='color:{color};font-size:1.28em;font-weight:800;line-height:1.25;margin-top:2px;'>{val}</div>"
                 f"</div>",
                 unsafe_allow_html=True,
@@ -3079,7 +3261,7 @@ def main():
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     st.markdown(
-        "<div style='color:#5C647A;font-size:0.78em;margin:2px 2px 10px;'>"
+        "<div style='color:#94a3b8;font-size:0.78em;margin:2px 2px 10px;'>"
         "Select an analysis screen below.</div>",
         unsafe_allow_html=True,
     )
@@ -3136,7 +3318,7 @@ def main():
                 st.pyplot(fig, use_container_width=True)
                 plt.close(fig)
                 st.markdown(
-                    "<div style='font-size:0.75em;color:#5C647A;margin-top:6px;line-height:1.8;'>"
+                    "<div style='font-size:0.75em;color:#94a3b8;margin-top:6px;line-height:1.8;'>"
                     "<span style='color:#cc0000;'>&#9646;</span> High<br>"
                     "<span style='color:#ff6600;'>&#9646;</span> Medium<br>"
                     "<span style='color:#cccc00;'>&#9646;</span> Low<br>"
@@ -3161,9 +3343,9 @@ def main():
                         f"<div style='border:1px solid {border};background:{bg};"
                         f"border-radius:12px;padding:16px;text-align:center;'>"
                         f"<div style='font-size:1.3em;font-weight:800;color:{border};'>{rng}</div>"
-                        f"<div style='font-weight:700;color:#1B1F36;font-size:0.88em;"
+                        f"<div style='font-weight:700;color:#f8fafc;font-size:0.88em;"
                         f"margin:4px 0 6px;'>{label}</div>"
-                        f"<div style='color:#5C647A;font-size:0.76em;line-height:1.5;'>{desc}</div>"
+                        f"<div style='color:#94a3b8;font-size:0.76em;line-height:1.5;'>{desc}</div>"
                         f"</div>",
                         unsafe_allow_html=True,
                     )
@@ -3234,11 +3416,11 @@ def main():
                         f"<span style='font-weight:800;color:{c};font-size:0.9em;'>"
                         f"&#9679; Point {i+1}</span>"
                         f"<span class='{tcls}'>{tier}</span></div>"
-                        f"<div style='font-size:2em;font-weight:900;color:#1B1F36;"
+                        f"<div style='font-size:2em;font-weight:900;color:#f8fafc;"
                         f"line-height:1;'>{prob:.0f}%</div>"
-                        f"<div style='color:#5C647A;font-size:0.76em;margin-top:2px;'>"
+                        f"<div style='color:#94a3b8;font-size:0.76em;margin-top:2px;'>"
                         f"Fixation: {dwell:.2f}s</div>"
-                        f"<div style='color:#8A92A8;font-size:0.72em;margin-top:4px;'>"
+                        f"<div style='color:#64748b;font-size:0.72em;margin-top:4px;'>"
                         f"x&thinsp;{x} &nbsp; y&thinsp;{y}</div>"
                         f"</div>",
                         unsafe_allow_html=True,
@@ -3289,23 +3471,23 @@ def main():
                     rows = [{"Rank": e["rank"], "Peak %": e["peak"], "Share %": e["share"], "Score": e["score"]} for e in top_elements]
                     table_rows = "".join([
                         "<tr>"
-                        f"<td style='padding:10px 12px;border-bottom:1px solid #E4E8F0;color:#1B1F36;font-weight:600;'>{r['Rank']}</td>"
-                        f"<td style='padding:10px 12px;border-bottom:1px solid #E4E8F0;color:#C47D08;'>{r['Peak %']}</td>"
-                        f"<td style='padding:10px 12px;border-bottom:1px solid #E4E8F0;color:#3D6FBC;'>{r['Share %']}</td>"
-                        f"<td style='padding:10px 12px;border-bottom:1px solid #E4E8F0;color:#2F9D5C;font-weight:700;'>{r['Score']}</td>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#f1f5f9;font-weight:600;'>{r['Rank']}</td>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#f5c842;'>{r['Peak %']}</td>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#38bdf8;'>{r['Share %']}</td>"
+                        f"<td style='padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.08);color:#34d399;font-weight:700;'>{r['Score']}</td>"
                         "</tr>"
                         for r in rows
                     ])
                     st.markdown(
-                        "<div style='border:1px solid #E4E8F0;border-radius:12px;overflow:hidden;"
-                        "background:#ffffff;'>"
+                        "<div style='border:1px solid rgba(255,255,255,0.10);border-radius:12px;overflow:hidden;"
+                        "background:rgba(16,52,102,0.55);'>"
                         "<table style='width:100%;border-collapse:collapse;font-size:0.83em;'>"
                         "<thead>"
-                        "<tr style='background:#f3f6fb;'>"
-                        "<th style='text-align:left;padding:10px 12px;color:#1B1F36;border-bottom:1px solid #E4E8F0;'>Rank</th>"
-                        "<th style='text-align:left;padding:10px 12px;color:#1B1F36;border-bottom:1px solid #E4E8F0;'>Peak %</th>"
-                        "<th style='text-align:left;padding:10px 12px;color:#1B1F36;border-bottom:1px solid #E4E8F0;'>Share %</th>"
-                        "<th style='text-align:left;padding:10px 12px;color:#1B1F36;border-bottom:1px solid #E4E8F0;'>Score</th>"
+                        "<tr style='background:rgba(56,189,248,0.12);'>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f8fafc;border-bottom:1px solid rgba(255,255,255,0.12);'>Rank</th>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f8fafc;border-bottom:1px solid rgba(255,255,255,0.12);'>Peak %</th>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f8fafc;border-bottom:1px solid rgba(255,255,255,0.12);'>Share %</th>"
+                        "<th style='text-align:left;padding:10px 12px;color:#f8fafc;border-bottom:1px solid rgba(255,255,255,0.12);'>Score</th>"
                         "</tr>"
                         "</thead>"
                         "<tbody>"
@@ -3425,9 +3607,9 @@ def main():
                 )
                 st.markdown(
                     "<div style='font-size:2.6em;margin-bottom:12px;'>&#128196;</div>"
-                    "<div style='font-size:1.15em;font-weight:800;color:#1B1F36;"
+                    "<div style='font-size:1.15em;font-weight:800;color:#f8fafc;"
                     "letter-spacing:0.5px;margin-bottom:8px;'>Full Analysis Report</div>"
-                    "<div style='color:#5C647A;font-size:0.83em;line-height:1.8;margin-bottom:20px;'>"
+                    "<div style='color:#94a3b8;font-size:0.83em;line-height:1.8;margin-bottom:20px;'>"
                     "Branded Elastic Tree deck: metrics, insights, heat map colour scale, clarity, top regions, "
                     "faces, composition balance, and methodology"
                     "</div>",
