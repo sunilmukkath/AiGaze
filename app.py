@@ -2758,12 +2758,12 @@ def _landing_scroll_cue(focus: str) -> None:
     if focus == "pricing":
         target_js = (
             "const el=doc.getElementById('pricing');"
-            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}"
+            "if(el){el.scrollIntoView({behavior:'auto',block:'start'});}"
         )
     elif focus == "access":
         target_js = (
             "const el=doc.getElementById('studio');"
-            "if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}"
+            "if(el){el.scrollIntoView({behavior:'auto',block:'start'});}"
         )
     else:
         # Default start = ET /ai-gaze landing hero (not mid-page #studio sign-in).
@@ -2930,11 +2930,9 @@ def _landing_page():
     with cta1:
         if st.button("Launch Studio →", type="primary", use_container_width=True, key="cta_launch"):
             st.session_state.landing_focus = "access"
-            st.rerun()
     with cta2:
         if st.button("View Pricing", use_container_width=True, key="cta_pricing"):
             st.session_state.landing_focus = "pricing"
-            st.rerun()
     with cta3:
         st.link_button(
             "Contact Sales",
@@ -3099,7 +3097,6 @@ def _landing_page():
                          type="primary" if plan["featured"] else "secondary"):
                 st.session_state.selected_plan = plan["name"]
                 st.session_state.landing_focus = "access"
-                st.rerun()
 
     st.markdown(
         "<div style='text-align:center;color:#64748b;font-size:0.75em;margin-top:10px;'>"
