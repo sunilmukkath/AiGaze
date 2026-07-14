@@ -185,8 +185,7 @@ export default function HomePage() {
               Ready to test a creative?
             </h2>
             <p className="text-[var(--text-secondary)] mb-8 leading-relaxed">
-              Open the AI Gaze™ studio — the same self-serve tool linked from elastictree.com — and run your first
-              analysis in minutes.
+              Open the AI Gaze™ studio and run your first analysis in minutes.
             </p>
             <a href={AI_GAZE_STUDIO_URL} target="_blank" rel="noopener noreferrer" className="et-btn-primary inline-flex items-center gap-2">
               Launch Studio <ArrowRight size={18} />

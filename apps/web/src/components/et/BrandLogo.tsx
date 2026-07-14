@@ -12,13 +12,13 @@ interface BrandLogoProps {
 
 /** AI Gaze product mark (full lockup). Elastic Tree company brand lives in the footer. */
 export function BrandLogo({
-  height = 36,
+  height = 48,
   className = "",
   priority = false,
   withWordmark = false,
   wordmarkClassName = "",
 }: BrandLogoProps) {
-  const width = Math.round(height * (1536 / 1024));
+  const width = Math.round(height * (1419 / 488));
   return (
     <span className={`inline-flex items-center gap-2.5 shrink-0 ${className}`}>
       <Image
@@ -26,7 +26,7 @@ export function BrandLogo({
         alt={withWordmark ? "" : "AI Gaze"}
         width={width}
         height={height}
-        className="shrink-0 object-contain drop-shadow-[0_0_12px_rgba(232,168,32,0.25)]"
+        className="shrink-0 object-contain"
         priority={priority}
         style={{ height, width: "auto", maxWidth: width }}
       />

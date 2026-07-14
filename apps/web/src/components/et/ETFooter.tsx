@@ -1,15 +1,14 @@
 import Link from "next/link";
-import Image from "next/image";
 import { BrandLogo } from "./BrandLogo";
 
 export function ETFooter() {
   return (
     <footer className="border-t border-white/10 bg-[#0a1f4a]/55 backdrop-blur-xl text-[var(--text-muted)] py-16">
       <div className="max-w-6xl mx-auto px-6">
-        <div className="grid md:grid-cols-4 gap-10 mb-12">
-          <div className="md:col-span-1">
+        <div className="grid md:grid-cols-3 gap-10 mb-12">
+          <div>
             <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
-              <BrandLogo height={36} />
+              <BrandLogo height={48} />
             </Link>
             <p className="text-sm font-semibold text-[var(--amber-light)] mb-1">
               Predictive Eye Tracking
@@ -41,40 +40,10 @@ export function ETFooter() {
               Nungambakkam, Chennai 600034
             </p>
           </div>
-          <div>
-            <p className="text-[var(--text-primary)] text-sm font-semibold mb-3">An Elastic Tree product</p>
-            <a
-              href="https://www.elastictree.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 hover:opacity-90 transition"
-            >
-              <Image
-                src="/elastic-tree-logo.png"
-                alt="Elastic Tree"
-                width={140}
-                height={32}
-                className="object-contain h-7 w-auto"
-              />
-            </a>
-            <p className="text-sm mt-3 leading-relaxed text-[var(--text-secondary)]">
-              Smart Decisions, Simply Made.
-            </p>
-            <p className="text-sm mt-2">
-              <a
-                href="https://www.elastictree.com/"
-                className="hover:text-[var(--amber)] transition"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                elastictree.com
-              </a>
-            </p>
-          </div>
         </div>
         <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row justify-between text-sm gap-2">
-          <p>© 2026 Elastic Tree Marketing Services Pvt. Ltd.</p>
-          <p>AI Gaze™ · Predictive Eye Tracking</p>
+          <p>© 2026 AI Gaze™</p>
+          <p>Predictive Eye Tracking</p>
         </div>
       </div>
     </footer>

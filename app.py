@@ -165,22 +165,7 @@ def _normalize_aigaze_logo_file() -> str | None:
                 :,
             ]
 
-        et_src = _find_elastic_tree_source_png()
-        if et_src:
-            et_im = Image.open(et_src)
-            eh = int(et_im.size[1])
-        else:
-            eh = arr.shape[0]
-
-        h0 = int(arr.shape[0])
-        w0 = int(arr.shape[1])
-        if eh > 0 and h0 > 0 and h0 != eh:
-            nw = max(1, int(round(w0 * (eh / float(h0)))))
-            arr = np.asarray(
-                Image.fromarray(arr, mode="RGBA").resize((nw, eh), Image.Resampling.LANCZOS),
-                dtype=np.uint8,
-            )
-
+        # Keep native cropped resolution for crisp UI scaling (height set in CSS).
         Image.fromarray(arr, mode="RGBA").save(outp, format="PNG")
         return outp
     except Exception:
@@ -2723,30 +2708,29 @@ def _aigaze_wordmark(size="3.2rem", align="center"):
 
 
 def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
-    """Product menu bar — AI Gaze logo left; Elastic Tree lives in the footer."""
+    """AI Gaze product menu — no Elastic Tree website links."""
     links = [
-        ("Home", "https://www.elastictree.com/"),
-        ("Capabilities", "https://www.elastictree.com/capabilities"),
-        ("Table Share", "https://www.elastictree.com/table-share"),
-        ("AI Gaze", "https://www.elastictree.com/ai-gaze"),
-        ("Case Studies", "https://www.elastictree.com/casestudies"),
+        ("Overview", "#"),
+        ("Features", "#features"),
+        ("Pricing", "#pricing"),
+        ("Studio", "#studio"),
     ]
     link_html = "".join(
         (
             f"<a href='{href}' style='color:#e8a820;'>{lbl}</a>"
-            if lbl == active
-            else f"<a href='{href}' target='_blank' rel='noopener'>{lbl}</a>"
+            if lbl == active or (active == "AI Gaze" and lbl == "Overview")
+            else f"<a href='{href}'>{lbl}</a>"
         )
         for lbl, href in links
     )
     st.markdown(
         "<div class='et-site-nav'>"
         "<div style='display:flex;align-items:center;gap:12px;flex-wrap:wrap;'>"
-        + _aigaze_wordmark("34px", "left")
+        + _aigaze_wordmark("52px", "left")
         + "</div>"
         f"<div class='et-nav-links'>{link_html}</div>"
-        "<a class='et-nav-cta' href='https://www.elastictree.com/contact' target='_blank' rel='noopener'>"
-        "Get in Touch</a>"
+        "<a class='et-nav-cta' href='mailto:sunil@elastictree.com'>"
+        "Contact Sales</a>"
         "</div>"
         "<div class='et-gold-rule'></div>",
         unsafe_allow_html=True,
@@ -2754,21 +2738,19 @@ def _render_et_site_nav(*, active: str = "AI Gaze") -> None:
 
 
 def _render_page_footer(*, show_signout: bool = False) -> None:
-    """Footer aligned to Elastic Tree website."""
+    """AI Gaze product footer — no Elastic Tree website links."""
     st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
     footer_html = (
         "<div style='border-top:1px solid rgba(255,255,255,0.08);padding-top:22px;margin-top:8px;'>"
         "<div style='display:flex;flex-direction:column;align-items:center;"
         "justify-content:center;gap:8px;padding:4px 0 8px;text-align:center;'>"
-        + _et_wordmark("20px", "center")
+        + _aigaze_wordmark("40px", "center")
         + "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:0.82em;"
-        "font-weight:600;color:#cbd5e1;margin-top:4px;'>Smart Decisions, Simply Made.</div>"
+        "font-weight:600;color:#cbd5e1;margin-top:4px;'>AI Gaze&#8482; · Predictive Eye Tracking</div>"
         "<div style='font-size:0.72em;color:#94a3b8;'>"
-        "AI Gaze&#8482; &nbsp;&#183;&nbsp; An Elastic Tree product</div>"
-        "<div style='font-size:0.68em;color:#64748b;margin-top:2px;'>"
-        "<a href='https://www.elastictree.com/' target='_blank' rel='noopener' "
-        "style='color:#e8a820;text-decoration:none;font-weight:600;'>elastictree.com</a>"
-        " &nbsp;·&nbsp; Chennai</div>"
+        "<a href='mailto:sunil@elastictree.com' style='color:#e8a820;text-decoration:none;font-weight:600;'>"
+        "sunil@elastictree.com</a>"
+        " &nbsp;·&nbsp; +91 98408 50057</div>"
         "</div></div>"
     )
     if show_signout:
@@ -2845,7 +2827,7 @@ def _landing_page():
         "<div class='et-hero-wrap'>"
         "<div class='et-eyebrow'>Advanced Methods · Predictive Eye Tracking</div>"
         "<div style='display:inline-block;margin:4px 0 8px;'>"
-        + _aigaze_wordmark("78px", "center")
+        + _aigaze_wordmark("112px", "center")
         + "</div>"
         "<div class='et-hero-title'>See what gets attention in the "
         "<span>first 3 seconds</span>.</div>"
@@ -2868,8 +2850,8 @@ def _landing_page():
             st.rerun()
     with cta3:
         st.link_button(
-            "Book a Demo",
-            "https://www.elastictree.com/",
+            "Contact Sales",
+            "mailto:sunil@elastictree.com",
             use_container_width=True,
         )
 
@@ -2894,7 +2876,7 @@ def _landing_page():
             )
 
     # ── Deliverables ─────────────────────────────────────────
-    st.markdown("<div class='et-section-label'>What you get</div>", unsafe_allow_html=True)
+    st.markdown("<div id='features' class='et-section-label'>What you get</div>", unsafe_allow_html=True)
     st.markdown(
         "<div style='text-align:center;font-family:Outfit,DM Sans,sans-serif;"
         "font-size:clamp(1.2rem,2.5vw,1.6rem);font-weight:800;color:#f8fafc;"
@@ -2905,7 +2887,7 @@ def _landing_page():
     delivers = [
         ("Heat Map & Hot Spots", "Where first-glance attention lands — HIGH / MEDIUM / LOW zones mapped to your creative."),
         ("Gaze Path & Clarity", "Predicted fixation order in ~3 seconds, plus a focus score for visual hierarchy."),
-        ("Branded PDF Report", "Elastic Tree–ready deck for creative QA, client reviews, and planogram decisions."),
+        ("Branded PDF Report", "Client-ready attention report for creative QA, reviews, and planogram decisions."),
     ]
     for col, (title, desc) in zip([d1, d2, d3], delivers):
         with col:
@@ -3040,7 +3022,7 @@ def _landing_page():
     )
 
     # ── Access / sign-in ─────────────────────────────────────
-    st.markdown("<div class='et-section-label'>Client access</div>", unsafe_allow_html=True)
+    st.markdown("<div id='studio' class='et-section-label'>Client access</div>", unsafe_allow_html=True)
     if st.session_state.get("selected_plan"):
         st.markdown(
             f"<div style='text-align:center;color:#f5c842;font-size:0.82em;margin-bottom:8px;'>"
@@ -3055,7 +3037,7 @@ def _landing_page():
             "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:1.05em;font-weight:700;"
             "color:#f8fafc;margin-bottom:4px;'>Open AI Gaze Studio</div>"
             "<div style='color:#94a3b8;font-size:0.8em;margin-bottom:14px;'>"
-            "Password access for active Elastic Tree subscribers</div>",
+            "Password access for active AI Gaze subscribers</div>",
             unsafe_allow_html=True,
         )
         pwd = st.text_input(
@@ -3074,8 +3056,8 @@ def _landing_page():
         st.markdown(
             "<div style='color:#64748b;font-size:0.72em;margin-top:12px;'>"
             "Need a seat? "
-            "<a href='https://www.elastictree.com/' target='_blank' rel='noopener' "
-            "style='color:#e8a820;text-decoration:none;font-weight:600;'>Talk to Elastic Tree</a>"
+            "<a href='mailto:sunil@elastictree.com' "
+            "style='color:#e8a820;text-decoration:none;font-weight:600;'>Contact sales</a>"
             "</div></div>",
             unsafe_allow_html=True,
         )

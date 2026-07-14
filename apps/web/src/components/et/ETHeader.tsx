@@ -36,7 +36,7 @@ export function ETHeader({ variant = "public" }: ETHeaderProps) {
     >
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group" aria-label="AI Gaze home">
-          <BrandLogo height={34} priority />
+          <BrandLogo height={48} priority />
         </Link>
 
         {isPublic && (
