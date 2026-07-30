@@ -1,0 +1,17 @@
+.git
+.cache
+.matplotlib
+.railway
+__pycache__
+*.pyc
+node_modules
+apps
+.next
+.DS_Store
+*.log
+.vscode
+.devcontainer
+.content
+docs
+package.json
+package-lock.json
