@@ -5,4 +5,13 @@ providers = ["python"]
 NIXPACKS_PYTHON_VERSION = "3.11"
 
 [phases.setup]
-nixPkgs = ["python311", "gcc", "git"]
+nixPkgs = ["python311", "gcc", "git", "xorg.libxcb", "libGL", "glib", "zlib", "libx11"]
+aptPkgs = ["libxcb1", "libgl1", "libglib2.0-0", "libsm6", "libxext6", "libxrender1"]
+
+# mediapipe/ultralytics pull opencv-python (needs libxcb). Keep headless only.
+[phases.install]
+cmds = [
+  "python -m venv --copies /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt",
+  ". /opt/venv/bin/activate && pip uninstall -y opencv-python opencv-contrib-python || true",
+  ". /opt/venv/bin/activate && pip install --force-reinstall 'opencv-python-headless>=4.9.0,<5'",
+]
