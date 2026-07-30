@@ -11,4 +11,5 @@ apps/web/.env.local
 apps/web/.env
 .DS_Store
 *.log
+.railway/
 

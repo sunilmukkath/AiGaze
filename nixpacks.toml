@@ -1,0 +1,5 @@
+# Force Python build — repo also has package.json (Next.js marketing site).
+providers = ["python"]
+
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.11"

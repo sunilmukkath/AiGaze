@@ -1,8 +1,14 @@
-# Do not set server.port here: Streamlit Community Cloud expects the app on :8501
-# (health checks use http://localhost:8501/healthz). A custom port breaks deployment.
+# Do not set server.port here.
+# - Streamlit Community Cloud expects :8501
+# - Railway passes --server.port=$PORT via Procfile / railway.toml
 #
 # Local: if another app already uses 8501, run:
 #   streamlit run app.py --server.port 8510
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false

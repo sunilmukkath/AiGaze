@@ -50,8 +50,20 @@ Set the studio URL for web CTAs:
 
 ```bash
 # apps/web/.env.local
-NEXT_PUBLIC_AI_GAZE_STUDIO_URL=https://your-app.streamlit.app
+NEXT_PUBLIC_AI_GAZE_STUDIO_URL=https://your-app.up.railway.app
 ```
+
+### Deploy studio on Railway
+
+Config: `railway.toml`, `Procfile`, `nixpacks.toml` (Python 3.11).
+
+```bash
+railway link   # or: railway init --name aigaze
+railway up
+railway domain
+```
+
+Start command binds Streamlit to `$PORT`. Point Elastic Tree “Launch Studio” and `NEXT_PUBLIC_AI_GAZE_STUDIO_URL` at the Railway domain.
 
 ## Branding (same pattern as Ethos+)
 
