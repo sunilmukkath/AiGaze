@@ -1,7 +1,7 @@
 streamlit>=1.33.0
 numpy>=1.24.0
 scipy>=1.11.0
-opencv-python-headless>=4.9.0
+opencv-python-headless>=4.9.0,<5
 Pillow>=10.0.0
 matplotlib>=3.7.0
 fpdf2>=2.7.0
@@ -10,6 +10,6 @@ requests>=2.31.0
 # Optional high-accuracy stack; install where compatible.
 torch; python_version < "3.13"
 torchvision; python_version < "3.13"
-deepgaze-pytorch; python_version < "3.13"
+deepgaze_pytorch @ git+https://github.com/matthias-k/DeepGaze.git ; python_version < "3.13"
 mediapipe; python_version < "3.13"
 ultralytics; python_version < "3.13"
