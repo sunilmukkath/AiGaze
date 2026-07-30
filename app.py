@@ -201,7 +201,20 @@ st.set_page_config(
     page_icon=_AIGAZE_TAB_ICON_PATH if _AIGAZE_TAB_ICON_PATH and os.path.isfile(_AIGAZE_TAB_ICON_PATH) else "📈",
     layout="wide",
     initial_sidebar_state="collapsed",
+    menu_items={
+        "Get Help": "mailto:sunil@elastictree.com",
+        "Report a bug": None,
+        "About": "AI Gaze™ — Predictive eye tracking by Elastic Tree.",
+    },
 )
+
+# Product mark in Streamlit chrome (replaces default Streamlit mark when shown)
+_logo_path = _aigaze_logo_path()
+if _logo_path and os.path.isfile(_logo_path):
+    try:
+        st.logo(_logo_path, size="large")
+    except Exception:
+        pass
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -275,6 +288,14 @@ html, body, .stApp {
 }
 #MainMenu, footer, header { visibility: hidden; }
 [data-testid="stToolbar"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
+[data-testid="stStatusWidget"] { display: none !important; }
+[data-testid="stAppDeployButton"] { display: none !important; }
+[data-testid="stLogo"] { display: none !important; }
+img[alt*="Streamlit" i], img[src*="streamlit"] { display: none !important; }
+#MainMenu { display: none !important; }
+footer { display: none !important; }
+header[data-testid="stHeader"] { display: none !important; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #090e2c; }

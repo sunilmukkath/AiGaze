@@ -27,6 +27,9 @@ RUN python -m pip install --upgrade pip \
 
 COPY . .
 
+# Replace Streamlit boot splash title/logo with AI Gaze branding
+RUN python scripts/patch_streamlit_branding.py
+
 EXPOSE 8080
 
 CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT:-8080} --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false"]

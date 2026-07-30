@@ -12,3 +12,16 @@ enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = false
+
+# Match AI Gaze navy so the first paint isn't Streamlit white/red
+[theme]
+base = "dark"
+primaryColor = "#e8a820"
+backgroundColor = "#0a1f4a"
+secondaryBackgroundColor = "#103466"
+textColor = "#f1f5f9"
+font = "sans serif"
