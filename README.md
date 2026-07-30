@@ -50,7 +50,7 @@ Set the studio URL for web CTAs:
 
 ```bash
 # apps/web/.env.local
-NEXT_PUBLIC_AI_GAZE_STUDIO_URL=https://your-app.up.railway.app
+NEXT_PUBLIC_AI_GAZE_STUDIO_URL=https://aigaze-production.up.railway.app
 ```
 
 ### Deploy studio on Railway

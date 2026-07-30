@@ -1,6 +1,6 @@
-/** Public AI Gaze™ Streamlit studio URL */
+/** Public AI Gaze™ Streamlit studio URL (Railway) */
 export const AI_GAZE_STUDIO_URL =
-  process.env.NEXT_PUBLIC_AI_GAZE_STUDIO_URL ?? "https://aigaze.streamlit.app";
+  process.env.NEXT_PUBLIC_AI_GAZE_STUDIO_URL ?? "https://aigaze-production.up.railway.app";
 
 export const PRICING_PLANS = [
   {
