@@ -1730,29 +1730,11 @@ def draw_top_elements_overlay(img, elements):
     return out
 
 
-def compute_face_pull(img, sal_map):
-    """Return attention share captured by detected faces/person proxies."""
-    faces = _detect_faces(img)
-    h, w = sal_map.shape
-    face_mask = np.zeros((h, w), dtype=np.uint8)
-    for (x, y, w, h) in faces:
-        cv2.rectangle(face_mask, (x, y), (x + w, y + h), 255, -1)
-    sal = np.clip(sal_map.astype(np.float32), 0.0, 1.0)
-    total = float(sal.sum()) + 1e-8
-    face_share = float(sal[face_mask > 0].sum() / total) * 100.0
-    return {
-        "count": int(len(faces)),
-        "share": round(face_share, 1),
-        "faces": [tuple(map(int, f)) for f in faces],
-    }
-
-
 def compare_variant_metrics(metrics_a, metrics_b, name_a="A", name_b="B"):
     """Build compact comparison rows and overall winner."""
     keys = [
         ("Clarity", metrics_a["clarity"]["score"], metrics_b["clarity"]["score"]),
         ("Peak Attention", metrics_a["peak"], metrics_b["peak"]),
-        ("Face Pull", metrics_a["face_pull"]["share"], metrics_b["face_pull"]["share"]),
     ]
     rows = []
     wins = {name_a: 0, name_b: 0}
@@ -2101,7 +2083,6 @@ def _pdf_summarize_findings(meta, gaze_points):
     peak = float(meta.get("peak_pct") or 0)
     clr = meta.get("clarity") or {}
     clr_s = float(clr.get("score") or 0)
-    fp = meta.get("face_pull") or {}
     bal = meta.get("balance") or {}
     dist = float(bal.get("distraction") or 0)
 
@@ -2122,11 +2103,6 @@ def _pdf_summarize_findings(meta, gaze_points):
         gx, gy, gp = gaze_points[0]
         tier1 = "high" if gp >= 70 else "medium" if gp >= 40 else "low"
         bullets.append(f"The predicted first fixation is near ({gx}, {gy}) with roughly {gp:.0f}% relative salience ({tier1}).")
-
-    fc = int(fp.get("count") or 0)
-    sh = float(fp.get("share") or 0)
-    if fc > 0:
-        bullets.append(f"About {sh:.1f}% of modeled attention aligns with detected faces ({fc} region(s)): expect strong human-centric pull.")
 
     if dist >= 42:
         bullets.append(
@@ -2295,7 +2271,6 @@ def export_pdf(
 
     top_o = _save(meta["top_overlay"]) if meta.get("top_overlay") is not None else None
     bal_g = _save(meta["balance_grid"]) if meta.get("balance_grid") is not None else None
-    face_o = _save(meta["face_overlay"]) if meta.get("face_overlay") is not None else None
 
     cbar_path = None
     try:
@@ -2355,7 +2330,6 @@ def export_pdf(
     clean_page()
     heading("Executive Metrics", "At-a-glance model outputs")
     clr = meta.get("clarity") or {}
-    fp = meta.get("face_pull") or {}
     bal = meta.get("balance") or {}
     comp = meta.get("components") or {}
     pk = meta.get("peak_pct", "")
@@ -2375,7 +2349,6 @@ def export_pdf(
         ("Clarity score", clarity_disp, "Higher = fewer competing focal islands"),
         ("Clarity contrast", f"{clr.get('contrast', 0):.1f}%", "Spread between peak and median salience"),
         ("Focused area", f"{clr.get('focus_ratio', 0):.1f}%", "Share of canvas in top decile of salience"),
-        ("Face attention share", f"{fp.get('share', 0):.1f}%", f"Faces detected: {fp.get('count', 0)}"),
         ("Center share", f"{bal.get('center_share', 0):.1f}%", "Attention inside central 50% box"),
         ("Distraction index", f"{bal.get('distraction', 0):.1f}%", "Attention outside top 3 mass regions"),
         ("Scene signal", str(comp.get("scene_type", "-")).replace("_", " "), "Model scene prior / routing"),
@@ -2471,17 +2444,6 @@ def export_pdf(
             pdf.ln(4)
         body("Original (left) and ranked overlay (right). Bounding boxes approximate dominant attention islands.")
         dual_images_row(orig_p, top_o, pdf.get_y())
-
-    # ── Face pull ───────────────────────────────────────────────
-    if face_o:
-        clean_page()
-        heading("Faces & Figures", "Modeled pull toward detected faces")
-        _pdf_note_box(pdf, "face_pull")
-        body(
-            f"Face Attention Share: {fp.get('share', 0):.1f}%  |  "
-            f"Detected regions: {fp.get('count', 0)}"
-        )
-        dual_images_row(orig_p, face_o, pdf.get_y())
 
     # ── Composition balance ────────────────────────────────────
     if bal_g:
@@ -2597,17 +2559,6 @@ _ANALYSIS_NOTES = {
         "needs_work": (
             "Rank 1 is a background texture, colour block, or border. "
             "Shift visual weight toward the element you want viewers to notice first."
-        ),
-    },
-    "face_pull": {
-        "how": (
-            "Face Attention Share shows what percentage of total model salience lands on detected faces or figures. "
-            "Humans are biologically primed to look at faces — high share is usually a positive signal."
-        ),
-        "good": "Share ≥ 30% and the face is your primary brand asset — spokesperson, character, or pack face.",
-        "needs_work": (
-            "Share < 10% when a face is present means it is too small, too peripheral, or being "
-            "overpowered by competing elements. Share > 70% on an unrelated face may crowd out the brand message."
         ),
     },
     "balance": {
@@ -3066,7 +3017,7 @@ def _landing_page():
                 "80 analyses / month",
                 "Everything in Starter",
                 "A/B variant compare",
-                "Face pull & attention balance",
+                "Attention balance",
                 "Priority support · shared seats (3)",
             ],
             "cta": "Choose Growth",
@@ -3259,7 +3210,6 @@ def main():
             "<span class='feature-chip'>Gaze Sequence</span>"
             "<span class='feature-chip'>Clarity Score</span>"
             "<span class='feature-chip'>Top 5 Elements</span>"
-            "<span class='feature-chip'>Face Pull</span>"
             "<span class='feature-chip'>Attention Balance</span>"
             "<span class='feature-chip'>Variant Compare</span>"
             "<span class='feature-chip'>PDF Export</span>"
@@ -3303,19 +3253,8 @@ def main():
         clarity      = compute_clarity_score(sal_map)
         top_elements = detect_top_elements(sal_map, max_items=5)
         top_overlay  = draw_top_elements_overlay(img_np, top_elements) if top_elements else img_np
-        face_pull    = compute_face_pull(img_np, sal_map)
         balance      = compute_attention_balance(sal_map)
         balance_grid = draw_attention_balance_overlay(img_np)
-        face_overlay_pdf = img_np.copy()
-        if face_pull["count"]:
-            for (x, y, w_, h_) in face_pull["faces"]:
-                cv2.rectangle(
-                    face_overlay_pdf,
-                    (x, y),
-                    (x + w_, y + h_),
-                    (60, 191, 191),
-                    2,
-                )
 
     # ── Vertical metrics sidebar + Tabs ──────────────────────
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
@@ -3329,7 +3268,6 @@ def main():
         ("Peak Attention", f"{peak_pct}%", tier_color),
         ("Clarity Score", f"{clarity['score']:.1f}", ET_GOLD),
         ("Scene", str(components.get("scene_type", "editorial")).replace("_", " ").title(), ET_PURPLE),
-        ("Face Pull", f"{face_pull['share']:.1f}%", ET_TEAL),
         ("Distraction", f"{balance['distraction']:.1f}%", "#fb7185"),
         ("Faces", "Yes" if components.get("face_found") else "No", ET_GREEN if components.get("face_found") else "#94a3b8"),
         ("Size", f"{W}×{H}", ET_BLUE),
@@ -3353,13 +3291,12 @@ def main():
     )
 
     with st.container():
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
             "Heat Map",
             "Hot Spot",
             "Gaze Path",
             "Clarity",
             "Top Elements",
-            "Face Pull",
             "Balance",
             "Compare",
             "Report",
@@ -3587,25 +3524,8 @@ def main():
                     st.info("No strong elements detected.")
                 st.markdown(_insight_html("top_elements", label="Top Attention Regions"), unsafe_allow_html=True)
 
-        # ── TAB 6 — FACE / PERSON PULL ────────────────────────
+        # ── TAB 6 — ATTENTION BALANCE ─────────────────────────
         with tab6:
-            f1, f2 = st.columns([2, 3])
-            with f1:
-                st.metric("Detected Faces", face_pull["count"])
-                st.metric("Face Attention Share", f"{face_pull['share']:.1f}%")
-                st.markdown(_insight_html("face_pull", label="Faces & Figures"), unsafe_allow_html=True)
-            with f2:
-                face_overlay = img_np.copy()
-                for (x, y, w_, h_) in face_pull["faces"]:
-                    cv2.rectangle(face_overlay, (x, y), (x + w_, y + h_), (60, 191, 191), 2)
-                fo1, fo2 = st.columns(2)
-                with fo1:
-                    st.image(img_np, use_container_width=True)
-                with fo2:
-                    st.image(face_overlay, use_container_width=True)
-
-        # ── TAB 7 — ATTENTION BALANCE ─────────────────────────
-        with tab7:
             lcol, rcol = st.columns([3, 2])
             with lcol:
                 st.markdown(
@@ -3628,8 +3548,8 @@ def main():
                 st.metric("Distraction Index", f"{balance['distraction']:.1f}%")
                 st.markdown(_insight_html("balance", label="Attention Balance"), unsafe_allow_html=True)
 
-        # ── TAB 8 — VARIANT COMPARISON ────────────────────────
-        with tab8:
+        # ── TAB 7 — VARIANT COMPARISON ────────────────────────
+        with tab7:
             st.markdown(
                 "<p class='section-title'>Variant Comparison (A/B)</p>"
                 "<p class='section-sub'>Upload a second creative to compare key attention outcomes</p>",
@@ -3656,11 +3576,10 @@ def main():
                     st.stop()
                 heat_b = generate_heatmap(img_b, sal_b)
                 clarity_b = compute_clarity_score(sal_b)
-                face_b = compute_face_pull(img_b, sal_b)
                 peak_b = float(np.max(sal_b) * 100.0)
 
-                metrics_a = {"clarity": clarity, "peak": float(peak_pct), "face_pull": face_pull}
-                metrics_b = {"clarity": clarity_b, "peak": peak_b, "face_pull": face_b}
+                metrics_a = {"clarity": clarity, "peak": float(peak_pct)}
+                metrics_b = {"clarity": clarity_b, "peak": peak_b}
                 rows, overall = compare_variant_metrics(metrics_a, metrics_b, "A", "B")
 
                 va, vb = st.columns(2)
@@ -3676,8 +3595,8 @@ def main():
             else:
                 st.info("Upload a second image to run A/B comparison.")
 
-        # ── TAB 9 — PDF EXPORT ────────────────────────────────
-        with tab9:
+        # ── TAB 8 — PDF EXPORT ────────────────────────────────
+        with tab8:
             _, pdf_col, _ = st.columns([1, 2, 1])
             with pdf_col:
                 st.markdown(
@@ -3697,7 +3616,7 @@ def main():
                     "letter-spacing:0.5px;margin-bottom:8px;'>Full Analysis Report</div>"
                     "<div style='color:#94a3b8;font-size:0.83em;line-height:1.8;margin-bottom:20px;'>"
                     "Branded Elastic Tree deck: metrics, insights, heat map colour scale, clarity, top regions, "
-                    "faces, composition balance, and methodology"
+                    "composition balance, and methodology"
                     "</div>",
                     unsafe_allow_html=True,
                 )
@@ -3714,7 +3633,6 @@ def main():
                             "Hot spot tier map and gaze path",
                             "Clarity deep-dive with side-by-side context",
                             "Top five attention regions (table + overlay)",
-                            "Face pull (when faces are detected)",
                             "Composition balance grid and split metrics",
                             "How to interpret + contact line",
                         ]
@@ -3739,7 +3657,6 @@ def main():
                                     "peak_pct": peak_pct,
                                     "top_tier": top_tier,
                                     "clarity": clarity,
-                                    "face_pull": face_pull,
                                     "balance": balance,
                                     "top_elements": top_elements,
                                     "components": components,
@@ -3748,9 +3665,6 @@ def main():
                                     "H": H,
                                     "top_overlay": top_overlay if top_elements else None,
                                     "balance_grid": balance_grid,
-                                    "face_overlay": face_overlay_pdf
-                                    if face_pull["count"]
-                                    else None,
                                 },
                             )
                         if pdf_bytes:

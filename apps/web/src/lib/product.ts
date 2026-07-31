@@ -29,7 +29,7 @@ export const PRICING_PLANS = [
       "80 analyses / month",
       "Everything in Starter",
       "A/B variant compare",
-      "Face pull & attention balance",
+      "Attention balance",
       "Priority support · shared seats (3)",
     ],
     featured: true,
