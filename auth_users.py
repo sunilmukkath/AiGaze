@@ -311,6 +311,58 @@ def create_user(email: str, password: str) -> dict:
     return {"id": user_id, "email": normalized}
 
 
+def ensure_sso_user(email: str) -> dict:
+    """Provision local AI Gaze user from central SSO email."""
+    normalized = (email or "").strip().lower()
+    if not normalized or "@" not in normalized:
+        raise ValueError("Valid email required")
+    existing = get_user_by_email(normalized)
+    if existing:
+        return {"id": existing["id"], "email": existing["email"]}
+    return create_user(normalized, f"sso:{uuid.uuid4().hex}")
+
+
+def consume_central_bridge(code: str) -> str:
+    """Exchange one-time et_bridge code for email via elastictree.com accounts."""
+    import hmac
+
+    base = (
+        os.environ.get("ET_ACCOUNTS_URL")
+        or os.environ.get("NEXT_PUBLIC_ET_ACCOUNTS_URL")
+        or "https://www.elastictree.com"
+    ).rstrip("/")
+    secret = (
+        os.environ.get("AUTH_BRIDGE_SECRET") or os.environ.get("BILLING_FULFILL_SECRET") or ""
+    ).strip()
+    body = json.dumps({"code": code}).encode()
+    headers = {"Content-Type": "application/json"}
+    if secret:
+        headers["X-ET-Bridge-Signature"] = hmac.new(
+            secret.encode(), code.encode(), hashlib.sha256
+        ).hexdigest()
+    req = urllib.request.Request(
+        f"{base}/api/auth/bridge/consume",
+        data=body,
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read().decode()).get("error")
+        except Exception:
+            detail = None
+        raise ValueError(detail or "Invalid or expired SSO bridge code") from exc
+    except urllib.error.URLError as exc:
+        raise ValueError("Accounts service unavailable") from exc
+    email = (data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise ValueError("Invalid SSO response")
+    return email
+
+
 def authenticate(email: str, password: str) -> dict | None:
     """QualView-style: try account password, then shared pilot password."""
     ensure_shared_admin()

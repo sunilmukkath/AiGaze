@@ -231,8 +231,10 @@ try:
         authenticate as _auth_user,
         can_run_analysis as _can_run_analysis,
         consume_analysis as _consume_analysis,
+        consume_central_bridge as _consume_bridge,
         create_user as _create_user,
         ensure_shared_admin as _ensure_shared_admin,
+        ensure_sso_user as _ensure_sso_user,
         get_user_by_email as _get_user_by_email,
         request_password_reset as _request_reset,
         reset_password_with_token as _reset_with_token,
@@ -245,6 +247,8 @@ except Exception:
     _request_reset = None
     _reset_with_token = None
     _ensure_shared_admin = None
+    _ensure_sso_user = None
+    _consume_bridge = None
     _get_user_by_email = None
     _can_run_analysis = None
     _consume_analysis = None
@@ -275,6 +279,34 @@ if _LEGACY_PASSWORD and _access_q and _access_q == _LEGACY_PASSWORD:
         del st.query_params["access"]
     except Exception:
         pass
+
+# Central SSO bridge (?et_bridge= from elastictree.com /accounts)
+_SSO_ON = os.environ.get("ET_SSO", "").strip() == "1" or os.environ.get("NEXT_PUBLIC_ET_SSO", "").strip() == "1"
+try:
+    _bridge_raw = st.query_params.get("et_bridge", "")
+    if isinstance(_bridge_raw, (list, tuple)):
+        _bridge_q = _bridge_raw[0] if _bridge_raw else ""
+    else:
+        _bridge_q = str(_bridge_raw or "")
+except Exception:
+    _bridge_q = ""
+if _SSO_ON and _bridge_q and _consume_bridge and _ensure_sso_user and not st.session_state.get("authenticated"):
+    try:
+        _sso_email = _consume_bridge(_bridge_q)
+        _sso_user = _ensure_sso_user(_sso_email)
+        st.session_state.authenticated = True
+        st.session_state.auth_email = _sso_user["email"]
+        try:
+            del st.query_params["et_bridge"]
+        except Exception:
+            pass
+        try:
+            del st.query_params["et_email"]
+        except Exception:
+            pass
+        st.rerun()
+    except Exception as _bridge_err:
+        st.session_state["_sso_bridge_error"] = str(_bridge_err)
 
 # Marketing site passes ?signin=1 to open the access form; ?reset=TOKEN for password reset
 try:
@@ -3352,6 +3384,34 @@ def _landing_page():
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
         else:
+            _accounts = (
+                os.environ.get("ET_ACCOUNTS_URL")
+                or os.environ.get("NEXT_PUBLIC_ET_ACCOUNTS_URL")
+                or "https://www.elastictree.com"
+            ).rstrip("/")
+            _public = (
+                os.environ.get("AIGAZE_PUBLIC_URL")
+                or "https://aigaze-production.up.railway.app"
+            ).rstrip("/")
+            if _SSO_ON:
+                st.markdown(
+                    "<div style='color:#94a3b8;font-size:0.78em;margin-bottom:10px;line-height:1.45;'>"
+                    "Use the same email as PayU checkout.</div>",
+                    unsafe_allow_html=True,
+                )
+                if st.session_state.get("_sso_bridge_error"):
+                    st.error(st.session_state.pop("_sso_bridge_error", None))
+                import urllib.parse
+
+                _ret = urllib.parse.quote(_public, safe="")
+                st.link_button(
+                    "Continue with Elastic Tree SSO",
+                    f"{_accounts}/accounts/signin?returnUrl={_ret}",
+                    type="primary",
+                    use_container_width=True,
+                )
+                st.caption("or local email (dual-run)")
+
             m1, m2 = st.columns(2)
             with m1:
                 if st.button(
