@@ -183,11 +183,12 @@ def _aigaze_logo_path():
 
 
 def _aigaze_icon_path():
-    """Square product mark for browser tab / homepage icon."""
+    """Shared Elastic Tree mark for browser tab (product marks stay in-app)."""
     for path in (
-        os.path.join(_APP_ROOT_DIR, "aigaze_icon.png"),
+        os.path.join(_APP_ROOT_DIR, "et_favicon.png"),
+        os.path.join(_APP_ROOT_DIR, "favicon-32.png"),
+        os.path.join(_APP_ROOT_DIR, "apps", "web", "public", "favicon-32.png"),
         os.path.join(_APP_ROOT_DIR, "apps", "web", "public", "favicon.png"),
-        os.path.join(_APP_ROOT_DIR, "apps", "web", "public", "aigaze-icon.png"),
     ):
         if os.path.isfile(path):
             return path
@@ -218,11 +219,29 @@ if _logo_path and os.path.isfile(_logo_path):
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+if "auth_email" not in st.session_state:
+    st.session_state.auth_email = None
+if "auth_mode" not in st.session_state:
+    st.session_state.auth_mode = "signin"
 
-# ── App password ─────────────────────────────────────────────
-_APP_PASSWORD = "elastic2026"
+# Shared unlock (legacy) + optional email accounts
+_LEGACY_PASSWORD = (os.environ.get("AIGAZE_ACCESS_PASSWORD") or "elastic2026").strip()
 
-# One-shot unlock from ET website sign-in (?access=…)
+# Email accounts (SQLite) — standard sign-in / register / reset
+try:
+    from auth_users import (
+        authenticate as _auth_user,
+        create_user as _create_user,
+        request_password_reset as _request_reset,
+        reset_password_with_token as _reset_with_token,
+    )
+except Exception:
+    _auth_user = None
+    _create_user = None
+    _request_reset = None
+    _reset_with_token = None
+
+# One-shot unlock from ET / bookmarks (?access=…)
 try:
     _access_raw = st.query_params.get("access", "")
     if isinstance(_access_raw, (list, tuple)):
@@ -231,10 +250,44 @@ try:
         _access_q = str(_access_raw or "")
 except Exception:
     _access_q = ""
-if _access_q and _access_q == _APP_PASSWORD:
+if _LEGACY_PASSWORD and _access_q and _access_q == _LEGACY_PASSWORD:
     st.session_state.authenticated = True
+    st.session_state.auth_email = st.session_state.get("auth_email") or "access@elastictree.com"
     try:
         del st.query_params["access"]
+    except Exception:
+        pass
+
+# Marketing site passes ?signin=1 to open the access form; ?reset=TOKEN for password reset
+try:
+    _signin_raw = st.query_params.get("signin", "")
+    if isinstance(_signin_raw, (list, tuple)):
+        _signin_q = _signin_raw[0] if _signin_raw else ""
+    else:
+        _signin_q = str(_signin_raw or "")
+except Exception:
+    _signin_q = ""
+if _signin_q == "1":
+    st.session_state.landing_focus = "access"
+    try:
+        del st.query_params["signin"]
+    except Exception:
+        pass
+
+try:
+    _reset_raw = st.query_params.get("reset", "")
+    if isinstance(_reset_raw, (list, tuple)):
+        _reset_q = _reset_raw[0] if _reset_raw else ""
+    else:
+        _reset_q = str(_reset_raw or "")
+except Exception:
+    _reset_q = ""
+if _reset_q:
+    st.session_state.landing_focus = "access"
+    st.session_state.auth_mode = "reset"
+    st.session_state.reset_token = _reset_q
+    try:
+        del st.query_params["reset"]
     except Exception:
         pass
 
@@ -666,9 +719,135 @@ div[data-testid="stDataFrame"] [role="gridcell"] {
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
+.et-tour-root{position:fixed;inset:0;z-index:99999;pointer-events:none;font-family:'DM Sans',sans-serif}
+.et-tour-backdrop{position:absolute;inset:0;background:rgba(9,14,44,.72);pointer-events:auto}
+.et-tour-spotlight{position:absolute;border-radius:12px;box-shadow:0 0 0 9999px rgba(9,14,44,.72),0 0 0 2px rgba(232,168,32,.85),0 0 28px rgba(232,168,32,.35);pointer-events:none;z-index:1}
+.et-tour-card{position:absolute;z-index:2;width:min(20rem,calc(100vw - 2rem));pointer-events:auto;border-radius:14px;border:1px solid rgba(56,189,248,.18);background:linear-gradient(160deg,rgba(18,54,104,.96),rgba(12,40,82,.94));padding:1.1rem 1.15rem 1rem;box-shadow:0 20px 56px rgba(0,0,0,.45);color:#e2e8f0}
+.et-tour-meta{font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:#2dd4bf;margin-bottom:.35rem}
+.et-tour-title{font-family:Outfit,'DM Sans',sans-serif;font-size:1.05rem;font-weight:700;color:#f1f5f9;letter-spacing:-.02em;margin:0}
+.et-tour-body{margin-top:.4rem;font-size:.875rem;line-height:1.55;color:#cbd5e1}
+.et-tour-actions{margin-top:1rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem}
+.et-tour-btn{font-family:Outfit,'DM Sans',sans-serif;font-size:.75rem;font-weight:700;border-radius:999px;padding:.45rem .9rem;cursor:pointer;border:1px solid transparent}
+.et-tour-btn-primary{background:linear-gradient(135deg,#f5c842,#e8a820);color:#0a1f4a;border-color:rgba(245,200,66,.35)}
+.et-tour-btn-ghost{background:transparent;color:#94a3b8;border:none}
+.et-tour-btn-ghost:hover{color:#f5c842}
+.et-replay-tips{font-family:Outfit,'DM Sans',sans-serif;font-size:.72rem;font-weight:600;color:#cbd5e1;background:rgba(16,52,102,.45);border:1px solid rgba(148,163,184,.22);border-radius:999px;padding:.4rem .85rem;cursor:pointer}
+.et-replay-tips:hover{color:#f5c842;border-color:rgba(232,168,32,.4)}
 </style>
 """
 st.markdown(_CSS, unsafe_allow_html=True)
+
+
+_TOUR_JS = r"""
+<script>
+(function(){
+  var KEY='et-ai-gaze-tour-v1';
+  var STEPS=[
+    {sel:'#ag-tour-studio', title:'AI Gaze Studio', body:'Upload a creative once, then explore attention tabs and export a PDF.'},
+    {sel:'div[data-testid="stFileUploader"]', title:'Upload creative', body:'Drop a JPG, PNG, or WebP of packaging, shelf, or ad creative.'},
+    {sel:'div[data-testid="stTabs"]', title:'Analysis tabs', body:'Switch Heat Map, Hot Spot, Gaze Path, Clarity, and more.'},
+    {sel:'button', title:'Generate PDF', body:'Open the Report tab and generate a branded client PDF.', matchText:'Generate PDF Report'}
+  ];
+  function dismissed(){ try{ return localStorage.getItem(KEY)==='1'; }catch(e){ return false; } }
+  function setDismissed(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} }
+  function clearDismissed(){ try{ localStorage.removeItem(KEY); }catch(e){} }
+  function findEl(step){
+    if(step.matchText){
+      var buttons=document.querySelectorAll(step.sel||'button');
+      for(var i=0;i<buttons.length;i++){
+        if((buttons[i].innerText||'').indexOf(step.matchText)>=0) return buttons[i];
+      }
+      return null;
+    }
+    return document.querySelector(step.sel);
+  }
+  function available(){ return STEPS.filter(function(s){ return !!findEl(s); }); }
+  function removeTour(){ var n=document.getElementById('et-aigaze-tour'); if(n) n.remove(); }
+  function placeCard(card, rect){
+    var below=rect.bottom+16;
+    var placeBelow=below+220<window.innerHeight;
+    card.style.top=(placeBelow?below:Math.max(16,rect.top-16))+'px';
+    card.style.left=Math.min(Math.max(16,rect.left), window.innerWidth-336)+'px';
+    card.style.transform=placeBelow?'':'translateY(-100%)';
+  }
+  function startTour(force){
+    if(!force && dismissed()) return;
+    removeTour();
+    var steps=available();
+    if(!steps.length){
+      // Wait for Streamlit widgets
+      setTimeout(function(){ startTour(force); }, 800);
+      return;
+    }
+    var idx=0;
+    var root=document.createElement('div');
+    root.id='et-aigaze-tour';
+    root.className='et-tour-root';
+    root.innerHTML='<div class="et-tour-backdrop"></div><div class="et-tour-spotlight"></div><div class="et-tour-card"></div>';
+    document.body.appendChild(root);
+    var spot=root.querySelector('.et-tour-spotlight');
+    var card=root.querySelector('.et-tour-card');
+    function render(){
+      steps=available();
+      if(!steps.length){ removeTour(); setDismissed(); return; }
+      if(idx>=steps.length) idx=steps.length-1;
+      var step=steps[idx];
+      var el=findEl(step);
+      if(!el){ idx++; render(); return; }
+      el.scrollIntoView({block:'nearest', behavior:'smooth'});
+      var r=el.getBoundingClientRect();
+      var pad=8;
+      spot.style.display='block';
+      spot.style.top=Math.max(8,r.top-pad)+'px';
+      spot.style.left=Math.max(8,r.left-pad)+'px';
+      spot.style.width=Math.min(window.innerWidth-16,r.width+pad*2)+'px';
+      spot.style.height=Math.min(window.innerHeight-16,r.height+pad*2)+'px';
+      placeCard(card, r);
+      card.innerHTML='<p class="et-tour-meta">Tip '+(idx+1)+' of '+steps.length+'</p>'+
+        '<h2 class="et-tour-title">'+step.title+'</h2>'+
+        '<p class="et-tour-body">'+step.body+'</p>'+
+        '<div class="et-tour-actions">'+
+        '<button type="button" class="et-tour-btn et-tour-btn-ghost" data-act="never">Don\\'t show again</button>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button type="button" class="et-tour-btn et-tour-btn-ghost" data-act="skip">Skip</button>'+
+        (idx>0?'<button type="button" class="et-tour-btn et-tour-btn-ghost" data-act="back">Back</button>':'')+
+        '<button type="button" class="et-tour-btn et-tour-btn-primary" data-act="next">'+(idx>=steps.length-1?'Done':'Next')+'</button>'+
+        '</div></div>';
+      card.querySelectorAll('[data-act]').forEach(function(btn){
+        btn.onclick=function(){
+          var act=btn.getAttribute('data-act');
+          if(act==='never'||act==='skip'||(act==='next'&&idx>=steps.length-1)){ setDismissed(); removeTour(); return; }
+          if(act==='back'){ idx=Math.max(0,idx-1); render(); return; }
+          if(act==='next'){ idx++; render(); }
+        };
+      });
+    }
+    render();
+    window.addEventListener('resize', render);
+  }
+  window.__etAiGazeReplayTips=function(){ clearDismissed(); startTour(true); };
+  // Replay control near site nav
+  function ensureReplay(){
+    if(document.getElementById('et-aigaze-replay')) return;
+    var nav=document.querySelector('.et-site-nav');
+    if(!nav) return;
+    var b=document.createElement('button');
+    b.id='et-aigaze-replay';
+    b.type='button';
+    b.className='et-replay-tips';
+    b.textContent='Replay tips';
+    b.onclick=function(){ window.__etAiGazeReplayTips(); };
+    nav.appendChild(b);
+  }
+  setTimeout(function(){ ensureReplay(); if(!dismissed()) startTour(false); }, 900);
+})();
+</script>
+"""
+
+
+def _inject_guided_tour() -> None:
+    """First-visit coachmarks for Streamlit studio (localStorage dismiss + Replay tips)."""
+    st.markdown(_TOUR_JS, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -2777,7 +2956,7 @@ def _render_et_site_nav(*, show_contact_sales: bool = True) -> None:
 
 
 def _render_page_footer(*, show_signout: bool = False) -> None:
-    """AI Gaze product footer — no Elastic Tree website links."""
+    """AI Gaze product footer with privacy links."""
     st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
     footer_html = (
         "<div style='border-top:1px solid rgba(255,255,255,0.08);padding-top:22px;margin-top:8px;'>"
@@ -2789,7 +2968,12 @@ def _render_page_footer(*, show_signout: bool = False) -> None:
         "<div style='font-size:0.72em;color:#94a3b8;'>"
         "<a href='mailto:sunil@elastictree.com' style='color:#e8a820;text-decoration:none;font-weight:600;'>"
         "sunil@elastictree.com</a>"
-        " &nbsp;·&nbsp; +91 98408 50057</div>"
+        " &nbsp;·&nbsp; +91 98408 50057"
+        " &nbsp;·&nbsp; <a href='https://www.elastictree.com/privacy' target='_blank' rel='noreferrer' "
+        "style='color:#94a3b8;text-decoration:none;'>Privacy</a>"
+        " &nbsp;·&nbsp; <a href='https://www.elastictree.com/terms' target='_blank' rel='noreferrer' "
+        "style='color:#94a3b8;text-decoration:none;'>Terms</a>"
+        "</div>"
         "</div></div>"
     )
     if show_signout:
@@ -2799,6 +2983,7 @@ def _render_page_footer(*, show_signout: bool = False) -> None:
         with fc_r:
             if st.button("Sign Out", use_container_width=False):
                 st.session_state.authenticated = False
+                st.session_state.auth_email = None
                 st.session_state.landing_focus = "overview"
                 st.session_state.landing_bootstrapped = False
                 st.markdown(
@@ -3088,35 +3273,140 @@ def _landing_page():
         )
     _, sc, _ = st.columns([1.05, 1.9, 1.05])
     with sc:
+        mode = st.session_state.get("auth_mode", "signin")
         st.markdown(
             "<div class='et-signin-card'>"
             "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:1.05em;font-weight:700;"
             "color:#f8fafc;margin-bottom:4px;'>Open AI Gaze Studio</div>"
             "<div style='color:#94a3b8;font-size:0.8em;margin-bottom:14px;'>"
-            "Password access for active AI Gaze subscribers</div>",
+            "Sign in with your email and password, or create an account. "
+            "Team access password still works.</div>",
             unsafe_allow_html=True,
         )
-        pwd = st.text_input(
-            "Password",
-            type="password",
-            placeholder="Enter access password",
-            label_visibility="collapsed",
-            key="landing_pwd",
-        )
-        if st.button("Sign in to Studio →", type="primary", use_container_width=True, key="landing_signin"):
-            if pwd == _APP_PASSWORD:
-                st.session_state.authenticated = True
+
+        if mode == "reset":
+            st.markdown("**Choose a new password**")
+            new_pwd = st.text_input("New password", type="password", key="reset_pwd")
+            confirm_pwd = st.text_input("Confirm password", type="password", key="reset_pwd2")
+            if st.button("Update password", type="primary", use_container_width=True, key="reset_submit"):
+                token = st.session_state.get("reset_token") or ""
+                if not _reset_with_token:
+                    st.error("Account service unavailable.")
+                elif len(new_pwd or "") < 8:
+                    st.error("Password must be at least 8 characters.")
+                elif new_pwd != confirm_pwd:
+                    st.error("Passwords do not match.")
+                else:
+                    try:
+                        _reset_with_token(token, new_pwd)
+                        st.success("Password updated. Sign in with your new password.")
+                        st.session_state.auth_mode = "signin"
+                        st.session_state.reset_token = None
+                        st.rerun()
+                    except ValueError as exc:
+                        st.error(str(exc))
+            if st.button("Back to sign in", use_container_width=True, key="reset_back"):
+                st.session_state.auth_mode = "signin"
                 st.rerun()
-            else:
-                st.error("Incorrect password. Please try again.")
-        st.markdown(
-            "<div style='color:#64748b;font-size:0.72em;margin-top:12px;'>"
-            "Need a seat? "
-            "<a href='mailto:sunil@elastictree.com' "
-            "style='color:#e8a820;text-decoration:none;font-weight:600;'>Contact sales</a>"
-            "</div></div>",
-            unsafe_allow_html=True,
-        )
+            st.markdown("</div>", unsafe_allow_html=True)
+        elif mode == "forgot":
+            st.markdown("**Forgot password**")
+            forgot_email = st.text_input("Email", placeholder="you@company.com", key="forgot_email")
+            if st.button("Send reset link", type="primary", use_container_width=True, key="forgot_submit"):
+                if not _request_reset:
+                    st.error("Account service unavailable.")
+                elif not forgot_email or "@" not in forgot_email:
+                    st.error("Enter a valid email.")
+                else:
+                    result = _request_reset(forgot_email)
+                    if not result.get("ok"):
+                        st.error(result.get("error") or "Could not send reset email.")
+                    else:
+                        st.success(result.get("message") or "Check your email.")
+                        if result.get("devResetUrl"):
+                            st.info(f"Dev link: {result['devResetUrl']}")
+            if st.button("Back to sign in", use_container_width=True, key="forgot_back"):
+                st.session_state.auth_mode = "signin"
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            m1, m2 = st.columns(2)
+            with m1:
+                if st.button("Sign in", use_container_width=True, key="auth_tab_signin",
+                             type="primary" if mode == "signin" else "secondary"):
+                    st.session_state.auth_mode = "signin"
+                    st.rerun()
+            with m2:
+                if st.button("Register", use_container_width=True, key="auth_tab_register",
+                             type="primary" if mode == "register" else "secondary"):
+                    st.session_state.auth_mode = "register"
+                    st.rerun()
+
+            email = st.text_input(
+                "Email",
+                placeholder="you@company.com",
+                key="landing_email",
+            )
+            pwd = st.text_input(
+                "Password",
+                type="password",
+                placeholder="••••••••",
+                key="landing_pwd",
+            )
+            cta = "Create account →" if mode == "register" else "Sign in to Studio →"
+            if st.button(cta, type="primary", use_container_width=True, key="landing_signin"):
+                legacy_ok = bool(_LEGACY_PASSWORD) and (pwd or "") == _LEGACY_PASSWORD
+                if mode == "register":
+                    if not _create_user:
+                        st.error("Account service unavailable. Please try again later.")
+                    elif not email or "@" not in email or not pwd:
+                        st.error("Email and password are required.")
+                    else:
+                        try:
+                            user = _create_user(email, pwd)
+                            st.session_state.authenticated = True
+                            st.session_state.auth_email = user["email"]
+                            st.rerun()
+                        except ValueError as exc:
+                            st.error(str(exc))
+                        except Exception:
+                            st.error("Could not create account. Please try again.")
+                elif not pwd:
+                    st.error("Password is required.")
+                elif legacy_ok:
+                    st.session_state.authenticated = True
+                    st.session_state.auth_email = (
+                        email.strip().lower()
+                        if email and "@" in email
+                        else "access@elastictree.com"
+                    )
+                    st.rerun()
+                elif not email or "@" not in email:
+                    st.error("Email and password are required (or use the team access password).")
+                elif not _auth_user:
+                    st.error("Account service unavailable. Use the team access password, or try again later.")
+                else:
+                    user = _auth_user(email, pwd)
+                    if user:
+                        st.session_state.authenticated = True
+                        st.session_state.auth_email = user["email"]
+                        st.rerun()
+                    else:
+                        st.error("Invalid email or password.")
+            if mode == "signin":
+                if st.button("Forgot password?", use_container_width=True, key="goto_forgot"):
+                    st.session_state.auth_mode = "forgot"
+                    st.rerun()
+            st.markdown(
+                "<div style='color:#64748b;font-size:0.72em;margin-top:12px;'>"
+                "Need a seat? "
+                "<a href='mailto:sunil@elastictree.com' "
+                "style='color:#e8a820;text-decoration:none;font-weight:600;'>Contact sales</a>"
+                " · <a href='https://www.elastictree.com/privacy' target='_blank' rel='noreferrer' "
+                "style='color:#94a3b8;text-decoration:none;'>Privacy</a>"
+                "</div></div>",
+                unsafe_allow_html=True,
+            )
 
     # ── Closing CTA band ─────────────────────────────────────
     st.markdown(
@@ -3153,7 +3443,7 @@ def main():
     # ── ET site chrome + product workspace ───────────────────
     _render_et_site_nav(show_contact_sales=False)
     st.markdown(
-        "<div style='display:flex;align-items:center;justify-content:space-between;"
+        "<div id='ag-tour-studio' style='display:flex;align-items:center;justify-content:space-between;"
         "flex-wrap:wrap;gap:14px;padding:4px 2px 14px;'>"
         "<div style='color:#94a3b8;font-size:0.8em;line-height:1.35;'>"
         "<div style='font-family:Outfit,DM Sans,sans-serif;font-weight:700;color:#f8fafc;"
@@ -3163,6 +3453,7 @@ def main():
         "</div>",
         unsafe_allow_html=True,
     )
+    _inject_guided_tour()
 
     # ── Upload zone + options row ─────────────────────────────
     st.markdown("<div class='et-saas-shell' style='padding:20px;'>", unsafe_allow_html=True)

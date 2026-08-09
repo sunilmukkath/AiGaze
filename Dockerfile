@@ -4,7 +4,9 @@ FROM python:3.11-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=8080
+    PORT=8080 \
+    AIGAZE_DATA_DIR=/app/.data \
+    AIGAZE_PUBLIC_URL=https://aigaze-production.up.railway.app
 
 WORKDIR /app
 

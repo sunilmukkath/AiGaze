@@ -12,4 +12,5 @@ apps/web/.env
 .DS_Store
 *.log
 .railway/
+.data/
 
