@@ -27,6 +27,18 @@ SHARED_ADMIN_EMAIL = (
 ).strip().lower()
 
 
+def employee_domain() -> str:
+    return (os.environ.get("ET_EMPLOYEE_DOMAIN") or "elastictree.com").strip().lower()
+
+
+def is_et_employee_email(email: str | None) -> bool:
+    normalized = (email or "").strip().lower()
+    domain = employee_domain()
+    if not normalized or not domain or "@" not in normalized:
+        return False
+    return normalized.endswith(f"@{domain}")
+
+
 def shared_admin_password() -> str:
     return (
         os.environ.get("ET_ADMIN_PASSWORD")
@@ -130,7 +142,8 @@ def _period_end_iso(period: str, from_iso: str) -> str:
 def is_plan_active(user: dict | None) -> bool:
     if not user:
         return False
-    if user.get("email") == SHARED_ADMIN_EMAIL:
+    email = (user.get("email") or "").strip().lower()
+    if email == SHARED_ADMIN_EMAIL or is_et_employee_email(email):
         return True
     plan = (user.get("plan") or "").lower()
     if plan not in PLAN_QUOTAS:
@@ -148,7 +161,8 @@ def is_plan_active(user: dict | None) -> bool:
 def can_run_analysis(user: dict | None) -> tuple[bool, str]:
     if not user:
         return False, "Sign in to run analyses."
-    if user.get("admin") or user.get("email") == SHARED_ADMIN_EMAIL:
+    email = (user.get("email") or "").strip().lower()
+    if user.get("admin") or email == SHARED_ADMIN_EMAIL or is_et_employee_email(email):
         return True, ""
     if not is_plan_active(user):
         checkout = (
@@ -317,9 +331,20 @@ def ensure_sso_user(email: str) -> dict:
     if not normalized or "@" not in normalized:
         raise ValueError("Valid email required")
     existing = get_user_by_email(normalized)
-    if existing:
-        return {"id": existing["id"], "email": existing["email"]}
-    return create_user(normalized, f"sso:{uuid.uuid4().hex}")
+    if not existing:
+        create_user(normalized, f"sso:{uuid.uuid4().hex}")
+    if is_et_employee_email(normalized):
+        apply_paid_subscription(
+            email=normalized,
+            plan="enterprise",
+            period="yearly",
+            txnid=f"et-employee:{normalized}",
+            sku="et-employee",
+        )
+    user = get_user_by_email(normalized)
+    if not user:
+        raise ValueError("Failed to provision SSO user")
+    return {"id": user["id"], "email": user["email"]}
 
 
 def consume_central_bridge(code: str) -> str:
