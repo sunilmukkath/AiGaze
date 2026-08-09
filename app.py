@@ -224,22 +224,30 @@ if "auth_email" not in st.session_state:
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "signin"
 
-# Shared unlock (legacy) + optional email accounts
-_LEGACY_PASSWORD = (os.environ.get("AIGAZE_ACCESS_PASSWORD") or "elastic2026").strip()
-
-# Email accounts (SQLite) — standard sign-in / register / reset
+# Shared unlock (legacy) + email accounts — same pattern as DataWiz / QualView / TScribe
 try:
     from auth_users import (
+        SHARED_ADMIN_EMAIL as _SHARED_ADMIN_EMAIL,
         authenticate as _auth_user,
         create_user as _create_user,
+        ensure_shared_admin as _ensure_shared_admin,
         request_password_reset as _request_reset,
         reset_password_with_token as _reset_with_token,
+        shared_admin_password as _shared_admin_password,
     )
+    _LEGACY_PASSWORD = _shared_admin_password()
 except Exception:
     _auth_user = None
     _create_user = None
     _request_reset = None
     _reset_with_token = None
+    _ensure_shared_admin = None
+    _SHARED_ADMIN_EMAIL = "admin@elastictree.com"
+    _LEGACY_PASSWORD = (
+        os.environ.get("ET_ADMIN_PASSWORD")
+        or os.environ.get("AIGAZE_ACCESS_PASSWORD")
+        or "elastic2026"
+    ).strip()
 
 # One-shot unlock from ET / bookmarks (?access=…)
 try:
@@ -252,7 +260,7 @@ except Exception:
     _access_q = ""
 if _LEGACY_PASSWORD and _access_q and _access_q == _LEGACY_PASSWORD:
     st.session_state.authenticated = True
-    st.session_state.auth_email = st.session_state.get("auth_email") or "access@elastictree.com"
+    st.session_state.auth_email = st.session_state.get("auth_email") or _SHARED_ADMIN_EMAIL
     try:
         del st.query_params["access"]
     except Exception:
@@ -3262,8 +3270,8 @@ def _landing_page():
         unsafe_allow_html=True,
     )
 
-    # ── Access / sign-in ─────────────────────────────────────
-    st.markdown("<div id='studio' class='et-section-label'>Client access</div>", unsafe_allow_html=True)
+    # ── Access / sign-in (DataWiz / QualView / TScribe pattern) ──
+    st.markdown("<div id='studio' class='et-section-label'>Studio access</div>", unsafe_allow_html=True)
     if st.session_state.get("selected_plan"):
         st.markdown(
             f"<div style='text-align:center;color:#f5c842;font-size:0.82em;margin-bottom:8px;'>"
@@ -3274,13 +3282,18 @@ def _landing_page():
     _, sc, _ = st.columns([1.05, 1.9, 1.05])
     with sc:
         mode = st.session_state.get("auth_mode", "signin")
+        blurb = (
+            "Create an account with your work email (password min 8 characters)."
+            if mode == "register"
+            else "Sign in with your email and password to open the attention workspace."
+        )
         st.markdown(
             "<div class='et-signin-card'>"
-            "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:1.05em;font-weight:700;"
-            "color:#f8fafc;margin-bottom:4px;'>Open AI Gaze Studio</div>"
-            "<div style='color:#94a3b8;font-size:0.8em;margin-bottom:14px;'>"
-            "Sign in with your email and password, or create an account. "
-            "Team access password still works.</div>",
+            "<div style='font-family:DM Mono,monospace;font-size:0.65rem;letter-spacing:0.14em;"
+            "text-transform:uppercase;color:#2dd4bf;margin-bottom:6px;'>Studio access</div>"
+            "<div style='font-family:Outfit,DM Sans,sans-serif;font-size:1.25em;font-weight:700;"
+            "color:#f8fafc;margin-bottom:4px;'>AI Gaze</div>"
+            f"<div style='color:#94a3b8;font-size:0.8em;margin-bottom:14px;line-height:1.5;'>{blurb}</div>",
             unsafe_allow_html=True,
         )
 
@@ -3332,13 +3345,21 @@ def _landing_page():
         else:
             m1, m2 = st.columns(2)
             with m1:
-                if st.button("Sign in", use_container_width=True, key="auth_tab_signin",
-                             type="primary" if mode == "signin" else "secondary"):
+                if st.button(
+                    "Sign in",
+                    use_container_width=True,
+                    key="auth_tab_signin",
+                    type="primary" if mode == "signin" else "secondary",
+                ):
                     st.session_state.auth_mode = "signin"
                     st.rerun()
             with m2:
-                if st.button("Register", use_container_width=True, key="auth_tab_register",
-                             type="primary" if mode == "register" else "secondary"):
+                if st.button(
+                    "Register",
+                    use_container_width=True,
+                    key="auth_tab_register",
+                    type="primary" if mode == "register" else "secondary",
+                ):
                     st.session_state.auth_mode = "register"
                     st.rerun()
 
@@ -3353,16 +3374,19 @@ def _landing_page():
                 placeholder="••••••••",
                 key="landing_pwd",
             )
-            cta = "Create account →" if mode == "register" else "Sign in to Studio →"
+            cta = "Create account" if mode == "register" else "Enter studio"
             if st.button(cta, type="primary", use_container_width=True, key="landing_signin"):
-                legacy_ok = bool(_LEGACY_PASSWORD) and (pwd or "") == _LEGACY_PASSWORD
                 if mode == "register":
                     if not _create_user:
                         st.error("Account service unavailable. Please try again later.")
                     elif not email or "@" not in email or not pwd:
                         st.error("Email and password are required.")
+                    elif len(pwd) < 8:
+                        st.error("Password must be at least 8 characters.")
                     else:
                         try:
+                            if _ensure_shared_admin:
+                                _ensure_shared_admin()
                             user = _create_user(email, pwd)
                             st.session_state.authenticated = True
                             st.session_state.auth_email = user["email"]
@@ -3371,38 +3395,30 @@ def _landing_page():
                             st.error(str(exc))
                         except Exception:
                             st.error("Could not create account. Please try again.")
-                elif not pwd:
-                    st.error("Password is required.")
-                elif legacy_ok:
-                    st.session_state.authenticated = True
-                    st.session_state.auth_email = (
-                        email.strip().lower()
-                        if email and "@" in email
-                        else "access@elastictree.com"
-                    )
-                    st.rerun()
-                elif not email or "@" not in email:
-                    st.error("Email and password are required (or use the team access password).")
-                elif not _auth_user:
-                    st.error("Account service unavailable. Use the team access password, or try again later.")
                 else:
-                    user = _auth_user(email, pwd)
-                    if user:
-                        st.session_state.authenticated = True
-                        st.session_state.auth_email = user["email"]
-                        st.rerun()
+                    if not email or "@" not in email or not pwd:
+                        st.error("Email and password are required.")
+                    elif not _auth_user:
+                        st.error("Account service unavailable. Please try again later.")
                     else:
-                        st.error("Invalid email or password.")
+                        user = _auth_user(email, pwd)
+                        if user:
+                            st.session_state.authenticated = True
+                            st.session_state.auth_email = user["email"]
+                            st.rerun()
+                        else:
+                            st.error("Invalid email or password.")
             if mode == "signin":
                 if st.button("Forgot password?", use_container_width=True, key="goto_forgot"):
                     st.session_state.auth_mode = "forgot"
                     st.rerun()
             st.markdown(
-                "<div style='color:#64748b;font-size:0.72em;margin-top:12px;'>"
-                "Need a seat? "
-                "<a href='mailto:sunil@elastictree.com' "
-                "style='color:#e8a820;text-decoration:none;font-weight:600;'>Contact sales</a>"
-                " · <a href='https://www.elastictree.com/privacy' target='_blank' rel='noreferrer' "
+                "<div style='color:#64748b;font-size:0.72em;margin-top:12px;text-align:center;'>"
+                "Product overview stays on "
+                "<a href='https://www.elastictree.com/ai-gaze' target='_blank' rel='noreferrer' "
+                "style='color:#2dd4bf;text-decoration:none;'>elastictree.com/ai-gaze</a>"
+                " &nbsp;·&nbsp; "
+                "<a href='https://www.elastictree.com/privacy' target='_blank' rel='noreferrer' "
                 "style='color:#94a3b8;text-decoration:none;'>Privacy</a>"
                 "</div></div>",
                 unsafe_allow_html=True,

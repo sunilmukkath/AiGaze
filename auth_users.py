@@ -1,4 +1,9 @@
-"""Email + password accounts for AI Gaze (SQLite)."""
+"""Email + password accounts for AI Gaze (SQLite).
+
+Matches Elastic Tree studio auth used by DataWiz / QualView / TScribe:
+- email + password register / sign-in / forgot-password
+- shared pilot admin (admin@elastictree.com / elastic2026) always available
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,19 @@ from pathlib import Path
 
 _DATA_DIR = Path(os.environ.get("AIGAZE_DATA_DIR", Path(__file__).resolve().parent / ".data"))
 _DB_PATH = _DATA_DIR / "users.sqlite"
+
+# Shared Elastic Tree pilot admin — same credentials across ET studio apps.
+SHARED_ADMIN_EMAIL = (
+    os.environ.get("ET_ADMIN_EMAIL") or "admin@elastictree.com"
+).strip().lower()
+
+
+def shared_admin_password() -> str:
+    return (
+        os.environ.get("ET_ADMIN_PASSWORD")
+        or os.environ.get("AIGAZE_ACCESS_PASSWORD")
+        or "elastic2026"
+    ).strip()
 
 
 def _connect() -> sqlite3.Connection:
@@ -108,10 +126,21 @@ def create_user(email: str, password: str) -> dict:
 
 
 def authenticate(email: str, password: str) -> dict | None:
-    user = get_user_by_email(email)
-    if not user or not verify_password(password, user["password_hash"]):
-        return None
-    return {"id": user["id"], "email": user["email"]}
+    """QualView-style: try account password, then shared pilot password."""
+    ensure_shared_admin()
+    normalized = (email or "").strip().lower()
+    if normalized and "@" in normalized:
+        user = get_user_by_email(normalized)
+        if user and verify_password(password, user["password_hash"]):
+            return {"id": user["id"], "email": user["email"]}
+    # Soft-launch / admin gate (same across ET studios)
+    if password and password == shared_admin_password():
+        return {
+            "id": "shared-admin",
+            "email": normalized if normalized and "@" in normalized else SHARED_ADMIN_EMAIL,
+            "admin": True,
+        }
+    return None
 
 
 def update_password(email: str, password: str) -> bool:
@@ -125,6 +154,27 @@ def update_password(email: str, password: str) -> bool:
         )
         conn.commit()
         return cur.rowcount > 0
+
+
+def ensure_shared_admin() -> None:
+    """Create or reset shared admin so login always works after cold starts."""
+    email = SHARED_ADMIN_EMAIL
+    password = shared_admin_password()
+    if "@" not in email or not password:
+        return
+    existing = get_user_by_email(email)
+    if not existing:
+        user_id = str(uuid.uuid4())
+        created = datetime.now(timezone.utc).isoformat()
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                (user_id, email, hash_password(password), created),
+            )
+            conn.commit()
+        return
+    if not verify_password(password, existing["password_hash"]):
+        update_password(email, password)
 
 
 def _hash_token(token: str) -> str:
@@ -166,10 +216,11 @@ def consume_reset_token(token: str) -> str | None:
 def public_reset_url(token: str) -> str:
     origin = (
         os.environ.get("AIGAZE_PUBLIC_URL")
-        or os.environ.get("NEXT_PUBLIC_APP_URL")
-        or "https://www.elastictree.com/ai-gaze"
+        or os.environ.get("RAILWAY_PUBLIC_DOMAIN")
+        or "https://aigaze-production.up.railway.app"
     ).rstrip("/")
-    # Streamlit studio may be on a separate host; query param handled in app.py
+    if not origin.startswith("http"):
+        origin = f"https://{origin}"
     sep = "&" if "?" in origin else "?"
     return f"{origin}{sep}reset={token}"
 
@@ -218,6 +269,7 @@ def send_reset_email(to: str, reset_url: str) -> dict:
 
 def request_password_reset(email: str) -> dict:
     """Always returns a generic ok message; may include devResetUrl when email is simulated."""
+    ensure_shared_admin()
     ok = {"ok": True, "message": "If an account exists for that email, we sent a password reset link."}
     user = get_user_by_email(email)
     if not user:
