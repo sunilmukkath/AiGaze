@@ -13,7 +13,7 @@ export default function PricingPage() {
             Pricing
           </h1>
           <p className="text-[var(--text-secondary)] text-center mb-12">
-            Choose how your team uses AI Gaze™
+            Per-creative and pack pricing · All prices exclusive of GST
           </p>
           <div className="grid md:grid-cols-3 gap-6">
             {PRICING_PLANS.map((plan) => (
@@ -37,26 +37,22 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                {plan.id === "enterprise" ? (
-                  <a href="mailto:sunil@elastictree.com" className="et-btn-primary w-full text-sm justify-center">
-                    {plan.cta}
-                  </a>
-                ) : (
-                  <a
-                    href={AI_GAZE_STUDIO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="et-btn-primary w-full text-sm justify-center"
-                  >
-                    {plan.cta}
-                  </a>
-                )}
+                <a
+                  href={`mailto:sunilmukkath@elastictree.com?subject=AI%20Gaze%20${encodeURIComponent(plan.name)}`}
+                  className="et-btn-primary w-full text-sm justify-center"
+                >
+                  {plan.cta}
+                </a>
               </div>
             ))}
           </div>
           <p className="text-center text-[var(--text-secondary)] text-sm mt-8">
-            Prices in INR · Annual discounts on Growth &amp; Enterprise · Need a custom study?{" "}
-            <Link href="mailto:sunil@elastictree.com" className="text-[var(--amber)] font-medium">
+            Prices in INR, exclusive of GST · Studio demo:{" "}
+            <a href={AI_GAZE_STUDIO_URL} className="text-[var(--amber)] font-medium" target="_blank" rel="noreferrer">
+              Launch Studio
+            </a>
+            {" · "}
+            <Link href="mailto:sunilmukkath@elastictree.com" className="text-[var(--amber)] font-medium">
               Contact Elastic Tree
             </Link>
           </p>

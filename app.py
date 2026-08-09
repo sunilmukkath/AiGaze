@@ -229,8 +229,11 @@ try:
     from auth_users import (
         SHARED_ADMIN_EMAIL as _SHARED_ADMIN_EMAIL,
         authenticate as _auth_user,
+        can_run_analysis as _can_run_analysis,
+        consume_analysis as _consume_analysis,
         create_user as _create_user,
         ensure_shared_admin as _ensure_shared_admin,
+        get_user_by_email as _get_user_by_email,
         request_password_reset as _request_reset,
         reset_password_with_token as _reset_with_token,
         shared_admin_password as _shared_admin_password,
@@ -242,6 +245,9 @@ except Exception:
     _request_reset = None
     _reset_with_token = None
     _ensure_shared_admin = None
+    _get_user_by_email = None
+    _can_run_analysis = None
+    _consume_analysis = None
     _SHARED_ADMIN_EMAIL = "admin@elastictree.com"
     _LEGACY_PASSWORD = (
         os.environ.get("ET_ADMIN_PASSWORD")
@@ -249,6 +255,10 @@ except Exception:
         or "elastic2026"
     ).strip()
 
+_CHECKOUT_URL = (
+    os.environ.get("PUBLIC_CHECKOUT_URL")
+    or "https://www.elastictree.com/ai-gaze#pricing"
+).strip()
 # One-shot unlock from ET / bookmarks (?access=…)
 try:
     _access_raw = st.query_params.get("access", "")
@@ -3180,58 +3190,53 @@ def _landing_page():
         "font-size:clamp(1.25rem,2.6vw,1.7rem);font-weight:800;color:#f8fafc;"
         "margin:-4px 0 6px;'>Choose how your team uses AI Gaze&#8482;</div>"
         "<div style='text-align:center;color:#94a3b8;font-size:0.85em;margin-bottom:18px;'>"
-        "Transparent SaaS plans · Custom research retainers available via Elastic Tree</div>",
+        "Per-creative and pack pricing · All prices exclusive of GST</div>",
         unsafe_allow_html=True,
     )
 
     plans = [
         {
-            "name": "Starter",
-            "price": "₹2,999",
-            "period": "/ month",
-            "blurb": "For freelancers and small teams testing a few creatives each month.",
+            "name": "Single Test",
+            "price": "₹4,500",
+            "period": "/ creative",
+            "blurb": "One creative asset — heatmap, clarity score, and PDF report.",
             "features": [
-                "20 analyses / month",
-                "Heat map, hot spot, gaze path",
-                "Clarity & top elements",
-                "PDF report export",
-                "Email support",
+                "1 creative asset",
+                "Attention heatmap + clarity score",
+                "PDF report",
             ],
-            "cta": "Start Starter",
+            "cta": "Request quote",
             "featured": False,
-            "key": "plan_starter",
+            "key": "plan_single",
         },
         {
-            "name": "Growth",
-            "price": "₹7,999",
-            "period": "/ month",
-            "blurb": "For brands and agencies running regular creative & pack QA.",
+            "name": "Pack of 10",
+            "price": "₹32,000",
+            "period": "(~₹3,200 ea.)",
+            "blurb": "Compare creatives across a set with shared benchmarking.",
             "features": [
-                "80 analyses / month",
-                "Everything in Starter",
-                "A/B variant compare",
-                "Attention balance",
-                "Priority support · shared seats (3)",
+                "10 creative assets",
+                "Comparative benchmarking across the set",
+                "Heatmap + clarity for each asset",
+                "PDF reports",
             ],
-            "cta": "Choose Growth",
+            "cta": "Request quote",
             "featured": True,
-            "key": "plan_growth",
+            "key": "plan_pack10",
         },
         {
-            "name": "Enterprise",
+            "name": "Agency Retainer",
             "price": "Custom",
-            "period": "from ₹19,999/mo",
-            "blurb": "For multi-brand teams needing volume, SLAs, and white-label.",
+            "period": "quote",
+            "blurb": "Ongoing monthly volume with priority turnaround.",
             "features": [
-                "Unlimited / high-volume credits",
-                "Team seats & SSO (on request)",
-                "API / batch workflow options",
-                "White-label PDF branding",
-                "Dedicated Elastic Tree researcher",
+                "Ongoing monthly volume",
+                "Priority turnaround",
+                "Brand-tracking over time",
             ],
             "cta": "Talk to Sales",
             "featured": False,
-            "key": "plan_enterprise",
+            "key": "plan_retainer",
         },
     ]
 
@@ -3260,13 +3265,17 @@ def _landing_page():
             )
             if st.button(plan["cta"], use_container_width=True, key=plan["key"],
                          type="primary" if plan["featured"] else "secondary"):
+                subject = plan["name"].replace(" ", "%20")
+                st.markdown(
+                    f"<meta http-equiv='refresh' content='0;url=mailto:sunilmukkath@elastictree.com?subject=AI%20Gaze%20{subject}'>",
+                    unsafe_allow_html=True,
+                )
                 st.session_state.selected_plan = plan["name"]
-                st.session_state.landing_focus = "access"
+                st.info("Opening email to Elastic Tree for a quote…")
 
     st.markdown(
         "<div style='text-align:center;color:#64748b;font-size:0.75em;margin-top:10px;'>"
-        "Prices in INR · Annual billing discounts on Growth &amp; Enterprise · "
-        "Custom pack / shelf studies quoted separately by Elastic Tree</div>",
+        "Prices in INR, exclusive of GST · Agency retainers quoted for ongoing volume</div>",
         unsafe_allow_html=True,
     )
 
@@ -3526,6 +3535,24 @@ def main():
         _render_page_footer(show_signout=True)
         return
 
+    # Plan / quota gate before expensive analysis
+    _email = st.session_state.get("auth_email")
+    _user = None
+    if _get_user_by_email and _email:
+        try:
+            _user = _get_user_by_email(_email)
+        except Exception:
+            _user = None
+    if _user is None and st.session_state.get("authenticated"):
+        _user = {"email": _email, "admin": _email == _SHARED_ADMIN_EMAIL}
+    if _can_run_analysis:
+        ok, reason = _can_run_analysis(_user)
+        if not ok:
+            st.warning(reason)
+            st.link_button("Subscribe with PayU", _CHECKOUT_URL, type="primary")
+            _render_page_footer(show_signout=True)
+            return
+
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── Load & process ────────────────────────────────────────
@@ -3544,6 +3571,11 @@ def main():
                 strict_target=strict_target_85,
                 max_passes=5,
             )
+            if _consume_analysis and _email:
+                try:
+                    _consume_analysis(_email)
+                except Exception:
+                    pass
         except RuntimeError as err:
             st.error(str(err))
             st.info(

@@ -134,10 +134,10 @@ export default function HomePage() {
           <div className="max-w-6xl mx-auto">
             <p className="et-section-label mb-3 text-center">Pricing</p>
             <h2 className="et-display text-3xl font-black text-center text-[var(--text-primary)] mb-4 tracking-tight">
-              Plans that fit creative QA
+              Per-creative pricing for attention QA
             </h2>
             <p className="text-center text-[var(--text-secondary)] mb-10">
-              Transparent SaaS pricing · Custom studies via Elastic Tree
+              Single tests, packs, and agency retainers · All prices exclusive of GST
             </p>
             <div className="grid md:grid-cols-3 gap-5">
               {PRICING_PLANS.map((plan) => (
@@ -159,20 +159,12 @@ export default function HomePage() {
                       </li>
                     ))}
                   </ul>
-                  {plan.id === "enterprise" ? (
-                    <a href="mailto:sunil@elastictree.com" className="et-btn-secondary w-full justify-center text-sm">
-                      {plan.cta}
-                    </a>
-                  ) : (
-                    <a
-                      href={AI_GAZE_STUDIO_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${plan.featured ? "et-btn-primary" : "et-btn-secondary"} w-full justify-center text-sm`}
-                    >
-                      {plan.cta}
-                    </a>
-                  )}
+                  <a
+                    href={`mailto:sunilmukkath@elastictree.com?subject=AI%20Gaze%20${encodeURIComponent(plan.name)}`}
+                    className={`${plan.featured ? "et-btn-primary" : "et-btn-secondary"} w-full justify-center text-sm`}
+                  >
+                    {plan.cta}
+                  </a>
                 </div>
               ))}
             </div>

@@ -58,8 +58,202 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
+    _ensure_user_columns(conn)
     conn.commit()
     return conn
+
+
+def _ensure_user_columns(conn: sqlite3.Connection) -> None:
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    for name, decl in (
+        ("plan", "TEXT"),
+        ("analyses_quota", "INTEGER NOT NULL DEFAULT 0"),
+        ("analyses_used", "INTEGER NOT NULL DEFAULT 0"),
+        ("period_ends_at", "TEXT"),
+        ("billing_period", "TEXT"),
+        ("last_txn_id", "TEXT"),
+        ("last_sku", "TEXT"),
+    ):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {name} {decl}")
+
+
+PLAN_QUOTAS = {
+    "starter": 20,
+    "growth": 80,
+    "enterprise": 999_999,
+}
+
+
+def get_user_by_email(email: str) -> dict | None:
+    normalized = email.strip().lower()
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT id, email, password_hash, plan, analyses_quota, analyses_used,
+                   period_ends_at, billing_period, last_txn_id, last_sku
+            FROM users WHERE email = ?
+            """,
+            (normalized,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "password_hash": row["password_hash"],
+        "plan": row["plan"],
+        "analyses_quota": int(row["analyses_quota"] or 0),
+        "analyses_used": int(row["analyses_used"] or 0),
+        "period_ends_at": row["period_ends_at"],
+        "billing_period": row["billing_period"],
+        "last_txn_id": row["last_txn_id"],
+        "last_sku": row["last_sku"],
+    }
+
+
+def _period_end_iso(period: str, from_iso: str) -> str:
+    d = datetime.fromisoformat(from_iso.replace("Z", "+00:00"))
+    if period == "yearly":
+        d = d.replace(year=d.year + 1)
+    else:
+        month = d.month + 1
+        year = d.year
+        if month > 12:
+            month = 1
+            year += 1
+        day = min(d.day, 28)
+        d = d.replace(year=year, month=month, day=day)
+    return d.astimezone(timezone.utc).isoformat()
+
+
+def is_plan_active(user: dict | None) -> bool:
+    if not user:
+        return False
+    if user.get("email") == SHARED_ADMIN_EMAIL:
+        return True
+    plan = (user.get("plan") or "").lower()
+    if plan not in PLAN_QUOTAS:
+        return False
+    ends = user.get("period_ends_at")
+    if ends:
+        try:
+            if datetime.fromisoformat(ends.replace("Z", "+00:00")) < datetime.now(timezone.utc):
+                return False
+        except ValueError:
+            pass
+    return True
+
+
+def can_run_analysis(user: dict | None) -> tuple[bool, str]:
+    if not user:
+        return False, "Sign in to run analyses."
+    if user.get("admin") or user.get("email") == SHARED_ADMIN_EMAIL:
+        return True, ""
+    if not is_plan_active(user):
+        checkout = (
+            os.environ.get("PUBLIC_CHECKOUT_URL")
+            or "https://www.elastictree.com/ai-gaze#pricing"
+        )
+        return False, f"No active paid plan. Subscribe at {checkout}"
+    used = int(user.get("analyses_used") or 0)
+    quota = int(user.get("analyses_quota") or 0)
+    if quota > 0 and used >= quota:
+        return False, "Analysis quota exhausted for this billing period. Upgrade or renew."
+    return True, ""
+
+
+def consume_analysis(email: str) -> bool:
+    normalized = email.strip().lower()
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT analyses_used FROM users WHERE email = ?",
+            (normalized,),
+        ).fetchone()
+        if not row:
+            return False
+        conn.execute(
+            "UPDATE users SET analyses_used = ? WHERE email = ?",
+            (int(row["analyses_used"] or 0) + 1, normalized),
+        )
+        conn.commit()
+    return True
+
+
+def apply_paid_subscription(
+    *,
+    email: str,
+    plan: str,
+    period: str,
+    txnid: str,
+    sku: str | None = None,
+    paid_at: str | None = None,
+) -> dict:
+    email_n = email.strip().lower()
+    plan_n = (plan or "starter").lower().strip()
+    if plan_n not in PLAN_QUOTAS:
+        plan_n = "starter"
+    period_n = "yearly" if period == "yearly" else "monthly"
+    paid = paid_at or datetime.now(timezone.utc).isoformat()
+    ends = _period_end_iso(period_n, paid)
+    quota = PLAN_QUOTAS[plan_n]
+
+    existing = get_user_by_email(email_n)
+    if existing and existing.get("last_txn_id") == txnid:
+        return {
+            "ok": True,
+            "alreadyApplied": True,
+            "email": email_n,
+            "plan": existing.get("plan") or plan_n,
+            "period_ends_at": existing.get("period_ends_at") or ends,
+        }
+
+    with _connect() as conn:
+        if existing:
+            conn.execute(
+                """
+                UPDATE users SET plan=?, analyses_quota=?, analyses_used=0,
+                  period_ends_at=?, billing_period=?, last_txn_id=?, last_sku=?
+                WHERE email=?
+                """,
+                (plan_n, quota, ends, period_n, txnid, sku, email_n),
+            )
+            created = False
+        else:
+            user_id = str(uuid.uuid4())
+            created_at = datetime.now(timezone.utc).isoformat()
+            conn.execute(
+                """
+                INSERT INTO users (
+                  id, email, password_hash, created_at, plan, analyses_quota, analyses_used,
+                  period_ends_at, billing_period, last_txn_id, last_sku
+                ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    email_n,
+                    f"payu-pending:{txnid}",
+                    created_at,
+                    plan_n,
+                    quota,
+                    ends,
+                    period_n,
+                    txnid,
+                    sku,
+                ),
+            )
+            created = True
+        conn.commit()
+
+    return {
+        "ok": True,
+        "created": created,
+        "email": email_n,
+        "plan": plan_n,
+        "period_ends_at": ends,
+        "analyses_quota": quota,
+        "txnid": txnid,
+    }
 
 
 def hash_password(password: str) -> str:
@@ -95,21 +289,13 @@ def verify_password(password: str, stored: str) -> bool:
     return secrets.compare_digest(expected, actual)
 
 
-def get_user_by_email(email: str) -> dict | None:
-    normalized = email.strip().lower()
-    with _connect() as conn:
-        row = conn.execute(
-            "SELECT id, email, password_hash FROM users WHERE email = ?",
-            (normalized,),
-        ).fetchone()
-    if not row:
-        return None
-    return {"id": row["id"], "email": row["email"], "password_hash": row["password_hash"]}
-
-
 def create_user(email: str, password: str) -> dict:
     normalized = email.strip().lower()
-    if get_user_by_email(normalized):
+    existing = get_user_by_email(normalized)
+    if existing:
+        if str(existing.get("password_hash") or "").startswith("payu-pending:"):
+            update_password(normalized, password)
+            return {"id": existing["id"], "email": normalized}
         raise ValueError("Account already exists")
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters")
@@ -132,7 +318,14 @@ def authenticate(email: str, password: str) -> dict | None:
     if normalized and "@" in normalized:
         user = get_user_by_email(normalized)
         if user and verify_password(password, user["password_hash"]):
-            return {"id": user["id"], "email": user["email"]}
+            return {
+                "id": user["id"],
+                "email": user["email"],
+                "plan": user.get("plan"),
+                "analyses_quota": user.get("analyses_quota"),
+                "analyses_used": user.get("analyses_used"),
+                "period_ends_at": user.get("period_ends_at"),
+            }
     # Soft-launch / admin gate (same across ET studios)
     if password and password == shared_admin_password():
         return {
