@@ -359,12 +359,17 @@ def consume_central_bridge(code: str) -> str:
     secret = (
         os.environ.get("AUTH_BRIDGE_SECRET") or os.environ.get("BILLING_FULFILL_SECRET") or ""
     ).strip()
+    if not secret:
+        raise ValueError(
+            "AUTH_BRIDGE_SECRET (or BILLING_FULFILL_SECRET) is required for SSO bridge"
+        )
     body = json.dumps({"code": code}).encode()
-    headers = {"Content-Type": "application/json"}
-    if secret:
-        headers["X-ET-Bridge-Signature"] = hmac.new(
+    headers = {
+        "Content-Type": "application/json",
+        "X-ET-Bridge-Signature": hmac.new(
             secret.encode(), code.encode(), hashlib.sha256
-        ).hexdigest()
+        ).hexdigest(),
+    }
     req = urllib.request.Request(
         f"{base}/api/auth/bridge/consume",
         data=body,

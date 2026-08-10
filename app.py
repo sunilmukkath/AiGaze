@@ -3396,7 +3396,7 @@ def _landing_page():
             if _SSO_ON:
                 st.markdown(
                     "<div style='color:#94a3b8;font-size:0.78em;margin-bottom:10px;line-height:1.45;'>"
-                    "Use the same email as PayU checkout.</div>",
+                    "Same Elastic Tree account as other studios — continue with Google on elastictree.com.</div>",
                     unsafe_allow_html=True,
                 )
                 if st.session_state.get("_sso_bridge_error"):
@@ -3405,12 +3405,12 @@ def _landing_page():
 
                 _ret = urllib.parse.quote(_public, safe="")
                 st.link_button(
-                    "Continue with Elastic Tree SSO",
+                    "Continue with Google",
                     f"{_accounts}/accounts/signin?returnUrl={_ret}",
                     type="primary",
                     use_container_width=True,
                 )
-                st.caption("or local email (dual-run)")
+                st.caption("or local email")
 
             m1, m2 = st.columns(2)
             with m1:
