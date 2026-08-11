@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Gaze™ Studio | Elastic Tree</title>
+  <link rel="icon" href="/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #0a1f4a;
+      --panel: #103466;
+      --amber: #e8a820;
+      --teal: #2dd4bf;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --line: rgba(255,255,255,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "DM Sans", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 85% -10%, rgba(45,212,191,0.16), transparent 60%),
+        radial-gradient(700px 380px at 10% 0%, rgba(232,168,32,0.14), transparent 55%),
+        linear-gradient(180deg, #071632 0%, var(--navy) 45%, #071a3a 100%);
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { height: 40px; width: auto; }
+    .brand span { font-family: Outfit, sans-serif; font-weight: 800; letter-spacing: -0.02em; }
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 64px; }
+    .card {
+      background: rgba(16,52,102,0.55);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.28);
+    }
+    h1 { font-family: Outfit, sans-serif; font-size: 1.6rem; margin: 0 0 8px; }
+    p.lead { color: var(--muted); margin: 0 0 20px; line-height: 1.5; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+    input[type=email], input[type=password], input[type=file] {
+      width: 100%; padding: 12px 14px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.95); color: #0f172a;
+      font: inherit; margin-bottom: 14px;
+    }
+    input[type=file] { background: rgba(255,255,255,0.06); color: var(--text); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 140px; }
+    button, .btn {
+      appearance: none; border: 0; cursor: pointer;
+      border-radius: 999px; padding: 12px 18px; font: inherit; font-weight: 700;
+      text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary { background: linear-gradient(90deg, #f5c842, var(--amber)); color: #0a1f4a; }
+    .btn-secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); }
+    .btn-ghost { background: transparent; color: var(--muted); }
+    .error { color: #fb7185; font-size: 0.9rem; margin: 8px 0 0; }
+    .ok { color: var(--teal); font-size: 0.9rem; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 14px; }
+    .tab {
+      border: 1px solid var(--line); background: rgba(255,255,255,0.04);
+      color: var(--muted); border-radius: 999px; padding: 8px 14px; cursor: pointer; font-weight: 600;
+    }
+    .tab.active { color: #0a1f4a; background: linear-gradient(90deg,#f5c842,var(--amber)); border-color: transparent; }
+    .panel img { width: 100%; border-radius: 12px; border: 1px solid var(--line); background: #000; }
+    .meta { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; margin: 16px 0; }
+    .chip { background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+    .chip b { display: block; font-size: 1.15rem; font-family: Outfit, sans-serif; }
+    .chip span { color: var(--muted); font-size: 0.78rem; }
+    .hidden { display: none !important; }
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(10,31,74,0.2); border-top-color: #0a1f4a; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="/static/aigaze-logo.png" alt="AI Gaze" onerror="this.style.display='none'" />
+      <span>AI Gaze™ Studio</span>
+    </div>
+    <div class="row" style="flex:0; min-width:auto;">
+      <button class="btn-ghost" id="signoutBtn" type="button">Sign out</button>
+    </div>
+  </header>
+  <main>
+    <div id="authCard" class="card">
+      <h1>Sign in to AI Gaze Studio</h1>
+      <p class="lead">Same Elastic Tree account as other studios — continue with Google on elastictree.com, or use local email.</p>
+      <p class="error" id="ssoError">{{SSO_ERROR}}</p>
+      <div id="ssoWrap" class="hidden" style="margin-bottom:14px;">
+        <a class="btn btn-primary" id="ssoBtn" href="#">Continue with Google</a>
+        <p style="color:var(--muted);font-size:0.8rem;margin:10px 0 0;">or local email</p>
+      </div>
+      <div class="row">
+        <button class="tab active" type="button" data-auth="signin">Sign in</button>
+        <button class="tab" type="button" data-auth="register">Create account</button>
+      </div>
+      <form id="authForm">
+        <label>Email</label>
+        <input type="email" id="email" required autocomplete="username" />
+        <label>Password</label>
+        <input type="password" id="password" required autocomplete="current-password" />
+        <div class="row">
+          <button class="btn-primary" type="submit" id="authSubmit">Sign in</button>
+        </div>
+        <p class="error hidden" id="authError"></p>
+      </form>
+    </div>
+
+    <div id="studioCard" class="card hidden">
+      <div class="toolbar">
+        <div>
+          <h1>Studio</h1>
+          <p class="lead" style="margin:0;">Upload a creative · review attention · export PDF</p>
+          <p class="ok" id="userLine"></p>
+        </div>
+        <a class="btn btn-secondary" id="checkoutLink" href="{{CHECKOUT_URL}}" target="_blank" rel="noreferrer">Upgrade</a>
+      </div>
+      <form id="uploadForm">
+        <label>Upload creative (JPG · PNG · WebP · BMP)</label>
+        <input type="file" id="file" accept="image/*" required />
+        <button class="btn-primary" type="submit" id="analyzeBtn">Analyse</button>
+        <p class="error hidden" id="analyzeError"></p>
+      </form>
+      <div id="results" class="hidden">
+        <div class="meta" id="meta"></div>
+        <div class="tabs" id="tabs"></div>
+        <div class="panel"><img id="preview" alt="Analysis preview" /></div>
+        <div style="margin-top:16px;">
+          <a class="btn btn-primary" id="pdfBtn" href="#">Download PDF report</a>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const SSO_ON = "{{SSO_ON}}" === "1";
+    const ACCOUNTS = "{{ACCOUNTS_URL}}";
+    const PUBLIC_URL = "{{PUBLIC_URL}}";
+    let authMode = "signin";
+    let result = null;
+    let activeTab = "heatmap";
+
+    const $ = (id) => document.getElementById(id);
+    const tabs = [
+      ["heatmap", "Heat Map"],
+      ["hotspot", "Hot Spot"],
+      ["gaze", "Gaze Path"],
+      ["elements", "Top Elements"],
+      ["balance", "Balance"],
+      ["original", "Original"],
+    ];
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        credentials: "include",
+        ...opts,
+        headers: {
+          ...(opts.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+          ...(opts.headers || {}),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || data.error || res.statusText);
+      return data;
+    }
+
+    function showAuth(authed, me) {
+      $("authCard").classList.toggle("hidden", authed);
+      $("studioCard").classList.toggle("hidden", !authed);
+      $("signoutBtn").classList.toggle("hidden", !authed);
+      if (authed && me?.user) {
+        const u = me.user;
+        $("userLine").textContent = u.email + (u.plan ? ` · ${u.plan}` : "");
+      }
+    }
+
+    async function refreshMe() {
+      const me = await api("/api/me");
+      showAuth(!!me.authenticated, me);
+      if (SSO_ON) {
+        $("ssoWrap").classList.remove("hidden");
+        const sso = await api("/api/auth/sso-url");
+        $("ssoBtn").href = sso.url;
+      }
+      return me;
+    }
+
+    document.querySelectorAll("[data-auth]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        authMode = btn.dataset.auth;
+        document.querySelectorAll("[data-auth]").forEach((b) => b.classList.toggle("active", b === btn));
+        $("authSubmit").textContent = authMode === "signin" ? "Sign in" : "Create account";
+      });
+    });
+
+    $("authForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("authError").classList.add("hidden");
+      try {
+        const body = JSON.stringify({ email: $("email").value, password: $("password").value });
+        await api(authMode === "signin" ? "/api/auth/signin" : "/api/auth/register", { method: "POST", body });
+        await refreshMe();
+      } catch (err) {
+        $("authError").textContent = err.message;
+        $("authError").classList.remove("hidden");
+      }
+    });
+
+    $("signoutBtn").addEventListener("click", async () => {
+      await api("/api/auth/signout", { method: "POST", body: "{}" });
+      result = null;
+      $("results").classList.add("hidden");
+      await refreshMe();
+    });
+
+    function renderResults() {
+      if (!result) return;
+      const m = result.meta || {};
+      $("meta").innerHTML = [
+        ["Engine", m.engine || "—"],
+        ["Confidence", m.confidence != null ? `${m.confidence}` : "—"],
+        ["Clarity", m.clarity?.score != null ? `${Math.round(m.clarity.score)}` : (m.clarity ?? "—")],
+        ["Scene", m.scene_type || "—"],
+      ].map(([k,v]) => `<div class="chip"><b>${v}</b><span>${k}</span></div>`).join("");
+
+      $("tabs").innerHTML = tabs.map(([id, label]) =>
+        `<button type="button" class="tab ${id===activeTab?"active":""}" data-tab="${id}">${label}</button>`
+      ).join("");
+      $("tabs").querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          activeTab = btn.dataset.tab;
+          renderResults();
+        });
+      });
+      const b64 = result.images?.[activeTab];
+      $("preview").src = b64 ? `data:image/png;base64,${b64}` : "";
+      $("pdfBtn").href = `/api/report.pdf?token=${encodeURIComponent(result.pdf_token)}`;
+      $("results").classList.remove("hidden");
+    }
+
+    $("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("analyzeError").classList.add("hidden");
+      const file = $("file").files?.[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("high_confidence", "true");
+      const btn = $("analyzeBtn");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Analysing…';
+      try {
+        const res = await fetch("/api/analyze", { method: "POST", body: fd, credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : (data.detail?.[0]?.msg || res.statusText));
+        result = data;
+        activeTab = "heatmap";
+        renderResults();
+      } catch (err) {
+        $("analyzeError").textContent = err.message;
+        $("analyzeError").classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Analyse";
+      }
+    });
+
+    // Hide empty SSO error
+    if (!$("ssoError").textContent.trim()) $("ssoError").classList.add("hidden");
+    refreshMe().catch(console.error);
+  </script>
+</body>
+</html>

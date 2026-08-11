@@ -2093,7 +2093,7 @@ def _elastic_tree_logo_path():
 
 def _build_combined_brand_logo_file() -> str | None:
     """
-    Single PNG: AiGaze + divider + Elastic Tree, transparent background.
+    Single PNG: Elastic Tree + divider + AiGaze, transparent background.
     Rebuilt when either source logo changes.
     """
     ag = _aigaze_logo_path()
@@ -2106,7 +2106,7 @@ def _build_combined_brand_logo_file() -> str | None:
     except OSError:
         return None
     # Bump basename when composite layout rules change so stale caches regenerate.
-    outp = os.path.join(cache_dir, "combined_brand_logo_v2.png")
+    outp = os.path.join(cache_dir, "combined_brand_logo_v3.png")
     try:
         dep_mtime = max(os.path.getmtime(ag), os.path.getmtime(et))
         if os.path.isfile(outp) and os.path.getmtime(outp) >= dep_mtime:
@@ -2131,15 +2131,16 @@ def _build_combined_brand_logo_file() -> str | None:
         h_canvas = max(ag_s.size[1], et_s.size[1])
         gap = max(8, int(round(h_canvas * 0.07)))
         div_w = max(1, min(3, int(round(h_canvas / 64))))
-        w_tot = ag_s.size[0] + gap + div_w + gap + et_s.size[0]
+        # Elastic Tree leftmost, then divider, then AiGaze
+        w_tot = et_s.size[0] + gap + div_w + gap + ag_s.size[0]
         canvas = Image.new("RGBA", (w_tot, h_canvas), (0, 0, 0, 0))
         x0 = 0
-        canvas.paste(ag_s, (x0, (h_canvas - ag_s.size[1]) // 2), ag_s)
-        x0 += ag_s.size[0] + gap
+        canvas.paste(et_s, (x0, (h_canvas - et_s.size[1]) // 2), et_s)
+        x0 += et_s.size[0] + gap
         div_strip = Image.new("RGBA", (div_w, h_canvas), (255, 255, 255, 58))
         canvas.paste(div_strip, (x0, 0), div_strip)
         x0 += div_w + gap
-        canvas.paste(et_s, (x0, (h_canvas - et_s.size[1]) // 2), et_s)
+        canvas.paste(ag_s, (x0, (h_canvas - ag_s.size[1]) // 2), ag_s)
         canvas.save(outp, format="PNG")
         return outp
     except Exception:
@@ -3053,8 +3054,8 @@ def _render_page_footer(*, show_signout: bool = False) -> None:
 
 def _dual_brand_lockup(lockup_height_px=52, layout="center", **_ignored):
     """
-    Single combined wordmark (AiGaze | Elastic Tree) when cache build succeeds;
-    otherwise flex with two rasters.
+    Single combined wordmark (Elastic Tree | AiGaze) when cache build succeeds;
+    otherwise flex with two rasters (ET leftmost).
     """
     h_px = int(lockup_height_px)
     h = f"{h_px}px"
@@ -3076,7 +3077,7 @@ def _dual_brand_lockup(lockup_height_px=52, layout="center", **_ignored):
                     f"<img src='data:image/png;base64,{encoded}' "
                     f"style='height:{h};width:auto;display:inline-block;vertical-align:middle;"
                     "max-width:100%;object-fit:contain;' "
-                    "alt='AIgaze and Elastic Tree'>"
+                    "alt='Elastic Tree and AIgaze'>"
                     "</span>"
                     "</div>"
                 )
@@ -3091,9 +3092,9 @@ def _dual_brand_lockup(lockup_height_px=52, layout="center", **_ignored):
     )
     return (
         f"<div style='display:flex;align-items:center;justify-content:{justify};gap:16px;flex-wrap:wrap;'>"
-        f"<div style='display:flex;align-items:center;'>{ag_html}</div>"
-        f"{bar}"
         f"<div style='display:flex;align-items:center;'>{et_html}</div>"
+        f"{bar}"
+        f"<div style='display:flex;align-items:center;'>{ag_html}</div>"
         "</div>"
     )
 

@@ -1,11 +1,14 @@
-streamlit>=1.33.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+email-validator>=2.1.0
+itsdangerous>=2.1.0
 numpy>=1.24.0
 scipy>=1.11.0
 opencv-python-headless>=4.9.0,<5
 Pillow>=10.0.0
 matplotlib>=3.7.0
 fpdf2>=2.7.0
-streamlit-drawable-canvas>=0.9.3
 requests>=2.31.0
 # Optional high-accuracy stack; install where compatible.
 torch; python_version < "3.13"

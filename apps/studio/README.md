@@ -1,33 +1,15 @@
-# AI Gaze™ Studio (Streamlit)
+# AI Gaze studio (archived Streamlit notes)
 
-The interactive analysis tool — heat maps, hot spots, gaze path, clarity, PDF export.
+The live studio now runs as **FastAPI** on Railway:
 
-## Why it's at the repo root
+- App: `api_app.py` + `templates/studio.html`
+- Engine: `engine/` (DeepGaze + PDF)
+- Legacy Streamlit monolith: `archive/app_streamlit_legacy.py`
 
-Streamlit Cloud currently deploys from the repository root (`app.py`, `requirements.txt`).
-Those files remain the **live studio entrypoint**.
-
-```
-ai-gaze/
-├── app.py                 ← Streamlit Cloud main file (studio)
-├── requirements.txt
-├── aigaze_logo.png
-├── apps/
-│   ├── web/               ← Next.js product marketing (Ethos+-style)
-│   └── studio/            ← this folder (docs + future home)
-└── package.json
-```
-
-## Run locally
-
-From the repository root:
+Local:
 
 ```bash
-pip install -r requirements.txt
-streamlit run app.py
-# or: npm run studio
+uvicorn api_app:app --host 0.0.0.0 --port 8080
 ```
 
-## Future
-
-When Streamlit Cloud is reconfigured, move `app.py` + assets here and set Main file path to `apps/studio/app.py`.
+Open http://127.0.0.1:8080/studio

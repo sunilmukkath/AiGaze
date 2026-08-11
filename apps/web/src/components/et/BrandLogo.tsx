@@ -13,7 +13,7 @@ interface BrandLogoProps {
   wordmarkClassName?: string;
 }
 
-/** AI Gaze product mark with optional Elastic Tree company logo. */
+/** Elastic Tree (left) + AI Gaze product mark. */
 export function BrandLogo({
   height = 48,
   className = "",
@@ -26,6 +26,15 @@ export function BrandLogo({
   const etHeight = Math.max(18, Math.round(height * 0.58));
   return (
     <span className={`inline-flex items-center gap-3 shrink-0 ${className}`}>
+      {showElasticTree && (
+        <>
+          <ElasticTreeLogo height={etHeight} priority={priority} className="opacity-95" />
+          <span
+            aria-hidden
+            className="hidden sm:block w-px self-stretch min-h-[1.5rem] bg-white/20 shrink-0"
+          />
+        </>
+      )}
       <Image
         src="/aigaze-logo.png"
         alt={withWordmark ? "" : "AI Gaze"}
@@ -41,15 +50,6 @@ export function BrandLogo({
         >
           AI Gaze
         </span>
-      )}
-      {showElasticTree && (
-        <>
-          <span
-            aria-hidden
-            className="hidden sm:block w-px self-stretch min-h-[1.5rem] bg-white/20 shrink-0"
-          />
-          <ElasticTreeLogo height={etHeight} priority={priority} className="hidden sm:block opacity-95" />
-        </>
       )}
     </span>
   );

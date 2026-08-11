@@ -1,3 +1,5 @@
+> **Runtime:** Railway serves FastAPI (`api_app.py`) — Streamlit has been removed.
+
 # AI Gaze™ — Elastic Tree Product
 
 Self-service **predictive eye tracking** product by **Elastic Tree**.  
@@ -7,26 +9,19 @@ Structure mirrors **Ethos Pulse** (`EThos+/ethos-pulse`): ET design system + pro
 
 ```
 ai-gaze/
-├── package.json              # npm workspaces → apps/web
-├── docs/
-│   └── DESIGN_SYSTEM.md      # ET tokens (shared with Ethos / elastictree.com)
-├── apps/
-│   ├── web/                  # Next.js product site (marketing + pricing)
-│   │   └── src/
-│   │       ├── app/          # /, /pricing, /methodology
-│   │       ├── components/et # BrandLogo, ETHeader, ETFooter
-│   │       └── lib/          # product copy + studio URL
-│   └── studio/               # Streamlit docs (tool currently at repo root)
-├── app.py                    # Streamlit Studio (Cloud entrypoint)
-├── requirements.txt
-└── aigaze_logo.png
+├── api_app.py                # FastAPI studio + API (Railway entrypoint)
+├── engine/                   # DeepGaze saliency + PDF report
+├── templates/studio.html     # Studio UI
+├── auth_users.py             # SQLite auth / billing / SSO bridge
+├── apps/web/                 # Next.js marketing site
+└── archive/                  # Legacy Streamlit monolith (retired)
 ```
 
 | Layer | Role |
 |-------|------|
-| **apps/web** | Product marketing (like Ethos Pulse web) — AI Gaze logo in header, Elastic Tree in footer |
-| **app.py (studio)** | Domain tool — attention analysis, PDF export |
-| **ET Website `/ai-gaze`** | Corporate site product page linking here / to studio |
+| **api_app.py** | Railway studio — auth, analyze, PDF, PayU fulfill |
+| **apps/web** | Product marketing — CTAs to Railway studio URL |
+| **ET Website `/ai-gaze`** | Corporate product page linking to studio |
 
 ## Quick start
 
@@ -38,12 +33,12 @@ npm run dev
 # http://localhost:3000
 ```
 
-### Studio (Streamlit)
+### Studio (FastAPI on Railway)
 
 ```bash
 pip install -r requirements.txt
-npm run studio
-# or: streamlit run app.py
+uvicorn api_app:app --host 0.0.0.0 --port 8080
+# http://127.0.0.1:8080/studio
 ```
 
 Set the studio URL for web CTAs:
@@ -63,7 +58,7 @@ railway up
 railway domain
 ```
 
-Start command binds Streamlit to `$PORT`. Point Elastic Tree “Launch Studio” and `NEXT_PUBLIC_AI_GAZE_STUDIO_URL` at the Railway domain.
+Start command binds FastAPI studio to `$PORT`. Point Elastic Tree “Launch Studio” and `NEXT_PUBLIC_AI_GAZE_STUDIO_URL` at the Railway domain.
 
 ## Branding (same pattern as Ethos+)
 

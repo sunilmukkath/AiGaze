@@ -1,4 +1,4 @@
-# AI Gaze Streamlit studio — Railway
+# AI Gaze API + studio — Railway (FastAPI, no Streamlit)
 FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -6,11 +6,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PORT=8080 \
     AIGAZE_DATA_DIR=/app/.data \
-    AIGAZE_PUBLIC_URL=https://aigaze-production.up.railway.app
+    AIGAZE_PUBLIC_URL=https://aigaze-production.up.railway.app \
+    AIGAZE_HTTPS_ONLY=1
 
 WORKDIR /app
 
-# Headless OpenCV / MediaPipe runtime libs (no full X11 stack needed if GUI opencv is removed)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     libglib2.0-0 \
@@ -29,9 +29,6 @@ RUN python -m pip install --upgrade pip \
 
 COPY . .
 
-# Replace Streamlit boot splash title/logo with AI Gaze branding
-RUN python scripts/patch_streamlit_branding.py
-
 EXPOSE 8080
 
-CMD ["sh", "-c", "python gateway.py"]
+CMD ["sh", "-c", "uvicorn api_app:app --host 0.0.0.0 --port ${PORT:-8080}"]
