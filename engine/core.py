@@ -66,6 +66,8 @@ def _find_elastic_tree_source_png():
     for path in (
         os.path.join(_APP_ROOT_DIR, "elastic_tree_logo.png"),
         os.path.join(_APP_ROOT_DIR, "assets", "elastic_tree_logo.png"),
+        os.path.join(_APP_ROOT_DIR, "static", "logo.png"),
+        os.path.join(_APP_ROOT_DIR, "static", "elastic-tree-logo.png"),
     ):
         if os.path.isfile(path):
             return path
@@ -76,6 +78,7 @@ def _find_aigaze_source_png():
     for path in (
         os.path.join(_APP_ROOT_DIR, "aigaze_logo.png"),
         os.path.join(_APP_ROOT_DIR, "assets", "aigaze_logo.png"),
+        os.path.join(_APP_ROOT_DIR, "static", "aigaze-logo.png"),
     ):
         if os.path.isfile(path):
             return path

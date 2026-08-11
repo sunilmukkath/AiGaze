@@ -79,18 +79,23 @@
       display: flex; align-items: center; justify-content: space-between; gap: 1rem;
     }
     .brand-lockup { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
-    .brand-lockup a.et { display: flex; align-items: center; opacity: 0.95; }
-    .brand-lockup a.et:hover { opacity: 1; }
-    .brand-lockup img.et-mark { height: 22px; width: auto; display: block; }
-    .brand-lockup .sep { width: 1px; height: 16px; background: var(--line-strong); flex-shrink: 0; }
-    .brand-lockup .product {
-      font-family: var(--display); font-weight: 800; font-size: 1.15rem;
+    .brand-lockup a { display: flex; align-items: center; opacity: 0.98; text-decoration: none; }
+    .brand-lockup a:hover { opacity: 1; }
+    .brand-lockup img.et-mark { height: 26px; width: auto; display: block; }
+    .brand-lockup img.product-mark { height: 34px; width: auto; display: none; }
+    @media (min-width: 640px) {
+      .brand-lockup img.product-mark { display: block; }
+      .brand-lockup .sep { display: block; }
+    }
+    .brand-lockup .sep {
+      display: none; width: 1px; height: 18px; background: var(--line-strong); flex-shrink: 0;
+    }
+    .brand-lockup .product-fallback {
+      font-family: var(--display); font-weight: 800; font-size: 1.1rem;
       letter-spacing: -0.02em; color: var(--text); white-space: nowrap;
     }
-    .brand-lockup .product em {
-      font-style: normal;
-      background: linear-gradient(135deg, var(--amber-light), var(--amber) 55%, var(--teal));
-      -webkit-background-clip: text; background-clip: text; color: transparent;
+    .brand-lockup .product-fallback em {
+      font-style: normal; color: var(--amber-light);
     }
     .header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
     .plan-pill {
@@ -533,11 +538,24 @@
   <header class="ets-header">
     <div class="ets-header-inner">
       <div class="brand-lockup">
-        <a class="et" href="https://www.elastictree.com" target="_blank" rel="noreferrer" title="Elastic Tree">
-          <img class="et-mark" src="/static/elastic-tree-logo.png" alt="Elastic Tree" onerror="this.src='/static/aigaze-logo.png'" />
+        <a href="https://www.elastictree.com" target="_blank" rel="noreferrer" title="Elastic Tree">
+          <img
+            class="et-mark"
+            src="/static/logo.png"
+            alt="Elastic Tree"
+            onerror="this.onerror=null;this.src='https://www.elastictree.com/logo.png'"
+          />
         </a>
         <span class="sep" aria-hidden="true"></span>
-        <span class="product">AI <em>Gaze</em>™</span>
+        <a href="/studio" title="AI Gaze Studio">
+          <img
+            class="product-mark"
+            src="/static/aigaze-logo.png"
+            alt="AI Gaze"
+            onerror="this.style.display='none';this.nextElementSibling.classList.remove('hidden')"
+          />
+          <span class="product-fallback hidden">AI <em>Gaze</em>™</span>
+        </a>
       </div>
       <div class="header-actions">
         <span class="user-chip hidden" id="userChip"><b id="userEmail"></b></span>
