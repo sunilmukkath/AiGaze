@@ -258,21 +258,32 @@
       if (!file) return;
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("high_confidence", "true");
+      fd.append("high_confidence", "false");
       const btn = $("analyzeBtn");
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span> Analysing…';
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 180000);
       try {
-        const res = await fetch("/api/analyze", { method: "POST", body: fd, credentials: "include" });
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          body: fd,
+          credentials: "include",
+          signal: ctrl.signal,
+        });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : (data.detail?.[0]?.msg || res.statusText));
         result = data;
         activeTab = "heatmap";
         renderResults();
       } catch (err) {
-        $("analyzeError").textContent = err.message;
+        const msg = err?.name === "AbortError"
+          ? "Analysis timed out. Try a smaller image, then retry."
+          : (err.message || "Analysis failed");
+        $("analyzeError").textContent = msg;
         $("analyzeError").classList.remove("hidden");
       } finally {
+        clearTimeout(timer);
         btn.disabled = false;
         btn.textContent = "Analyse";
       }

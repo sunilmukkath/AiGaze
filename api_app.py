@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import os
 import secrets
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,8 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import auth_users as auth
 from engine.analyze import build_pdf_from_bundle, decode_upload, run_analysis
+
+logger = logging.getLogger("aigaze")
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATES = ROOT / "templates"
@@ -130,12 +135,27 @@ def _verify_billing(raw: bytes, signature: str | None) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
+def _warm_models() -> None:
+    """Load DeepGaze in the background so the first user analyse is faster."""
+    try:
+        import numpy as np
+        from engine.core import compute_saliency
+
+        tiny = np.zeros((64, 64, 3), dtype=np.uint8)
+        tiny[:] = (32, 64, 128)
+        compute_saliency(tiny, enable_tta=False)
+        logger.info("DeepGaze warm-up complete")
+    except Exception as exc:
+        logger.warning("DeepGaze warm-up skipped: %s", exc)
+
+
 @app.on_event("startup")
 def _startup() -> None:
     try:
         auth.ensure_shared_admin()
     except Exception:
         pass
+    threading.Thread(target=_warm_models, name="aigaze-warmup", daemon=True).start()
 
 
 @app.get("/health")
@@ -255,7 +275,7 @@ def sso_url() -> dict[str, str]:
 async def analyze(
     request: Request,
     file: UploadFile = File(...),
-    high_confidence: bool = Form(True),
+    high_confidence: bool = Form(False),
 ) -> JSONResponse:
     user = _require_user(request)
     if not user.get("admin"):
@@ -272,7 +292,15 @@ async def analyze(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    result = run_analysis(img, high_confidence=bool(high_confidence))
+    try:
+        # CPU DeepGaze is blocking — keep the event loop free.
+        result = await asyncio.to_thread(
+            run_analysis, img, high_confidence=bool(high_confidence)
+        )
+    except Exception as exc:
+        logger.exception("analyse failed")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
+
     if not user.get("admin"):
         auth.consume_analysis(user["email"])
 

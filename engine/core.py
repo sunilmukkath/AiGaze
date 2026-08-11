@@ -507,6 +507,9 @@ def _detect_faces(img):
 @lru_cache(maxsize=1)
 def _load_yolo_model():
     """Load YOLO model once for person/object prior maps."""
+    # Off by default on Railway — first-request download blocks analyse for minutes.
+    if os.environ.get("AIGAZE_ENABLE_YOLO", "").strip() != "1":
+        return None
     if not YOLO_AVAILABLE:
         return None
     try:

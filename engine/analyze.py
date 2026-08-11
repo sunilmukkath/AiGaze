@@ -30,6 +30,21 @@ def _b64_png(arr: np.ndarray) -> str:
     return base64.b64encode(arr_to_png_bytes(arr)).decode("ascii")
 
 
+def _jsonable(value: Any) -> Any:
+    """Convert numpy / nested values into plain JSON types."""
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, (np.floating, np.integer)):
+        return value.item()
+    if isinstance(value, (np.bool_,)):
+        return bool(value)
+    return value
+
+
 def decode_upload(data: bytes) -> np.ndarray:
     """Decode image bytes to RGB uint8 array."""
     buf = np.frombuffer(data, dtype=np.uint8)
@@ -39,11 +54,22 @@ def decode_upload(data: bytes) -> np.ndarray:
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
 
-def run_analysis(img_rgb: np.ndarray, *, high_confidence: bool = True) -> dict[str, Any]:
+def run_analysis(img_rgb: np.ndarray, *, high_confidence: bool = False) -> dict[str, Any]:
     """Run full saliency suite and return JSON-serializable result."""
+    # Cap huge screenshots so CPU DeepGaze finishes in a reasonable time.
+    h, w = img_rgb.shape[:2]
+    max_side = 1600
+    if max(h, w) > max_side:
+        scale = max_side / float(max(h, w))
+        img_rgb = cv2.resize(
+            img_rgb,
+            (max(1, int(w * scale)), max(1, int(h * scale))),
+            interpolation=cv2.INTER_AREA,
+        )
+
     if high_confidence:
         sal, meta = compute_saliency_high_confidence(
-            img_rgb, target_confidence=85.0, enabled=True, strict_target=True
+            img_rgb, target_confidence=85.0, enabled=True, strict_target=False, max_passes=2
         )
     else:
         sal, meta = compute_saliency(img_rgb)
@@ -70,22 +96,26 @@ def run_analysis(img_rgb: np.ndarray, *, high_confidence: bool = True) -> dict[s
     return {
         "meta": {
             "engine": meta.get("engine"),
-            "confidence": meta.get("confidence"),
+            "confidence": _jsonable(meta.get("confidence")),
             "scene_type": meta.get("scene_type"),
             "face_found": bool(meta.get("face_found")),
             "fallback_reason": meta.get("fallback_reason"),
-            "clarity": clarity if isinstance(clarity, dict) else {"score": clarity},
-            "balance": balance,
+            "clarity": _jsonable(clarity if isinstance(clarity, dict) else {"score": clarity}),
+            "balance": _jsonable(balance),
             "elements": [
                 {
                     "rank": int(e.get("rank", i + 1)),
                     "score": float(e.get("score", 0)),
-                    "bbox": e.get("bbox"),
+                    "bbox": _jsonable(e.get("bbox")),
                 }
                 for i, e in enumerate(elements or [])
             ],
             "gaze": [
-                {"x": int(p[0]), "y": int(p[1]), "seconds": float(fixations[i]) if i < len(fixations) else None}
+                {
+                    "x": int(p[0]),
+                    "y": int(p[1]),
+                    "seconds": float(fixations[i]) if i < len(fixations) else None,
+                }
                 for i, p in enumerate(gaze_points or [])
             ],
         },
