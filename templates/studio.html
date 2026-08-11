@@ -3,269 +3,702 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0a1f4a" />
   <title>AI Gaze™ Studio | Elastic Tree</title>
   <link rel="icon" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --navy: #0a1f4a;
-      --panel: #103466;
       --amber: #e8a820;
+      --amber-light: #f5c842;
       --teal: #2dd4bf;
+      --teal-bright: #5eead4;
+      --cyan: #38bdf8;
+      --void: #0a1f4a;
+      --navy-deep: #090e2c;
+      --space: #0c2d5c;
+      --space-mid: #103870;
+      --space-card: #103466c7;
+      --input-bg: #1034668c;
+      --input-border: #e8a8202e;
+      --line: #ffffff14;
+      --line-strong: #ffffff22;
       --text: #f1f5f9;
+      --text-body: #e2e8f0;
+      --text-secondary: #cbd5e1;
       --muted: #94a3b8;
-      --line: rgba(255,255,255,0.12);
-      --rail: 280px;
+      --warn: #fb7185;
+      --rail: 300px;
+      --header-h: 60px;
+      --radius: 1rem;
+      --font: "DM Sans", system-ui, sans-serif;
+      --display: "Outfit", "DM Sans", sans-serif;
+      --mono: "DM Mono", ui-monospace, monospace;
     }
     * { box-sizing: border-box; }
+    html { color-scheme: dark; }
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "DM Sans", system-ui, sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(900px 420px at 85% -10%, rgba(45,212,191,0.16), transparent 60%),
-        radial-gradient(700px 380px at 10% 0%, rgba(232,168,32,0.14), transparent 55%),
-        linear-gradient(180deg, #071632 0%, var(--navy) 45%, #071a3a 100%);
+      font-family: var(--font);
+      color: var(--text-body);
+      font-size: 15px;
+      line-height: 1.55;
+      letter-spacing: 0.01em;
+      -webkit-font-smoothing: antialiased;
+      background-color: var(--void);
+      background-image:
+        radial-gradient(90% 55% at 12% 8%, #38bdf818 0%, transparent 55%),
+        radial-gradient(70% 45% at 88% 22%, #2dd4bf14 0%, transparent 50%),
+        radial-gradient(60% 40% at 70% 90%, #38bdf810 0%, transparent 55%);
+      background-attachment: fixed;
     }
-    header {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line);
-      backdrop-filter: blur(10px);
-    }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .brand img { height: 36px; width: auto; }
-    .brand span { font-family: Outfit, sans-serif; font-weight: 800; letter-spacing: -0.02em; }
-    .crumb { color: var(--muted); font-size: 0.85rem; }
-    .crumb strong { color: var(--text); font-weight: 600; }
-    main.auth-main { max-width: 520px; margin: 0 auto; padding: 36px 20px 64px; }
-    .shell { display: none; height: calc(100vh - 65px); }
-    .shell.on { display: grid; grid-template-columns: var(--rail) 1fr; }
-    .rail {
-      border-right: 1px solid var(--line);
-      background: rgba(7,22,50,0.55);
-      overflow: auto;
-      padding: 14px 12px 28px;
-    }
-    .workspace { overflow: auto; padding: 18px 22px 48px; }
-    .card {
-      background: rgba(16,52,102,0.55);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 22px;
-      box-shadow: 0 24px 80px rgba(0,0,0,0.28);
-    }
-    h1 { font-family: Outfit, sans-serif; font-size: 1.45rem; margin: 0 0 8px; }
-    h2 { font-family: Outfit, sans-serif; font-size: 0.95rem; margin: 0; letter-spacing: 0.02em; }
-    p.lead { color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
-    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
-    input[type=email], input[type=password], input[type=text], input[type=file] {
-      width: 100%; padding: 11px 13px; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.16);
-      background: rgba(255,255,255,0.95); color: #0f172a;
-      font: inherit; margin-bottom: 12px;
-    }
-    input[type=file] { background: rgba(255,255,255,0.06); color: var(--text); }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    .row > * { flex: 1; min-width: 120px; }
-    button, .btn {
-      appearance: none; border: 0; cursor: pointer;
-      border-radius: 999px; padding: 10px 16px; font: inherit; font-weight: 700;
-      text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
-      gap: 8px;
-    }
-    .btn-primary { background: linear-gradient(90deg, #f5c842, var(--amber)); color: #0a1f4a; }
-    .btn-secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); }
-    .btn-ghost { background: transparent; color: var(--muted); }
-    .btn-sm { padding: 6px 10px; font-size: 0.78rem; border-radius: 8px; }
-    .error { color: #fb7185; font-size: 0.9rem; margin: 8px 0 0; }
-    .ok { color: var(--teal); font-size: 0.85rem; }
-    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
-    .tab {
-      border: 1px solid var(--line); background: rgba(255,255,255,0.04);
-      color: var(--muted); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
-    }
-    .tab.active { color: #0a1f4a; background: linear-gradient(90deg,#f5c842,var(--amber)); border-color: transparent; }
-    .panel img { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 12px; border: 1px solid var(--line); background: #000; }
-    .meta { display: grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap: 10px; margin: 12px 0; }
-    .chip { background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
-    .chip b { display: block; font-size: 1.05rem; font-family: Outfit, sans-serif; }
-    .chip span { color: var(--muted); font-size: 0.75rem; }
+    button, .btn, a.btn { font: inherit; }
+    button { cursor: pointer; }
     .hidden { display: none !important; }
-    .spinner { width: 16px; height: 16px; border: 2px solid rgba(10,31,74,0.2); border-top-color: #0a1f4a; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); border: 0;
+    }
+
+    /* ── Header (DataWiz / ET chrome) ── */
+    .ets-header {
+      position: sticky; top: 0; z-index: 40;
+      height: var(--header-h);
+      display: flex; align-items: center;
+      backdrop-filter: blur(20px) saturate(140%);
+      background: #090e2cf2;
+      border-bottom: 1px solid #ffffff0d;
+      box-shadow: 0 4px 28px #04071866;
+    }
+    .ets-header-inner {
+      width: 100%; max-width: 1480px; margin: 0 auto;
+      padding: 0 1.1rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    .brand-lockup { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+    .brand-lockup a.et { display: flex; align-items: center; opacity: 0.95; }
+    .brand-lockup a.et:hover { opacity: 1; }
+    .brand-lockup img.et-mark { height: 22px; width: auto; display: block; }
+    .brand-lockup .sep { width: 1px; height: 16px; background: var(--line-strong); flex-shrink: 0; }
+    .brand-lockup .product {
+      font-family: var(--display); font-weight: 800; font-size: 1.15rem;
+      letter-spacing: -0.02em; color: var(--text); white-space: nowrap;
+    }
+    .brand-lockup .product em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--amber-light), var(--amber) 55%, var(--teal));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+    .plan-pill {
+      font-family: var(--mono); font-size: 0.625rem; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.3rem 0.65rem; border-radius: 999px;
+      background: #e8a8201a; color: var(--amber-light); border: 1px solid #e8a82040;
+    }
+    .user-chip {
+      display: none; align-items: center; gap: 0.45rem;
+      padding: 0.35rem 0.7rem; border-radius: 999px;
+      background: #ffffff08; border: 1px solid var(--line);
+      color: var(--muted); font-size: 0.78rem; max-width: 220px;
+    }
+    @media (min-width: 720px) { .user-chip { display: inline-flex; } }
+    .user-chip b { color: var(--text-secondary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Buttons ── */
+    .et-btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+      color: #0a1f4a; text-decoration: none;
+      background: linear-gradient(135deg, #f5c842 0%, #e8a820 55%, #c9920a 100%);
+      border: 1px solid #f5c84259; border-radius: 9999px;
+      padding: 0.7rem 1.35rem;
+      font-family: var(--display); font-size: 0.85rem; font-weight: 700;
+      box-shadow: inset 0 1px #ffffff38, 0 0 18px #e8a82038, 0 4px 14px #0a1f4a59;
+      transition: box-shadow 0.2s, transform 0.15s, filter 0.2s;
+    }
+    .et-btn-primary:hover:not(:disabled) {
+      filter: brightness(1.05); transform: translateY(-1px);
+      box-shadow: inset 0 1px #ffffff47, 0 0 28px #e8a82061, 0 6px 20px #0a1f4a66;
+    }
+    .et-btn-primary:disabled { opacity: 0.55; cursor: wait; transform: none; }
+    .et-btn-secondary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+      color: #e2e8f0; text-decoration: none;
+      backdrop-filter: blur(8px); background: #10346673;
+      border: 1px solid #94a3b838; border-radius: 9999px;
+      padding: 0.65rem 1.2rem;
+      font-family: var(--display); font-size: 0.85rem; font-weight: 600;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .et-btn-secondary:hover:not(:disabled) {
+      color: #f5c842; background: #e8a82014; border-color: #e8a82059;
+    }
+    .et-btn-ghost {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+      background: transparent; border: 0; color: var(--muted);
+      padding: 0.45rem 0.7rem; border-radius: 0.5rem;
+      font-size: 0.8rem; font-weight: 600;
+      transition: color 0.15s, background 0.15s;
+    }
+    .et-btn-ghost:hover { color: var(--amber-light); background: #e8a82012; }
+    .et-btn-icon {
+      width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 0.65rem;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #f5c842, #e8a820); color: #0a1f4a; border: 0;
+      flex-shrink: 0;
+    }
+    .et-btn-icon:hover { filter: brightness(1.06); }
+    .btn-sm { padding: 0.45rem 0.9rem !important; font-size: 0.78rem !important; }
+
+    /* ── Forms ── */
+    .et-label {
+      display: block; font-size: 0.78rem; font-weight: 600;
+      color: var(--text-secondary); margin-bottom: 0.4rem;
+    }
+    .et-input {
+      width: 100%; padding: 0.7rem 0.9rem; border-radius: 0.65rem;
+      background: var(--input-bg); border: 1px solid var(--input-border);
+      color: var(--text); font: inherit; font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .et-input::placeholder { color: var(--muted); }
+    .et-input:focus {
+      outline: none; border-color: #e8a82059; box-shadow: 0 0 0 3px #e8a8201a;
+    }
+    .et-field { margin-bottom: 0.95rem; }
+    .error { color: var(--warn); font-size: 0.85rem; margin: 0.5rem 0 0; }
+    .hint { color: var(--muted); font-size: 0.78rem; margin: 0.4rem 0 0; }
+
+    /* ── Auth gate ── */
+    .auth-wrap {
+      min-height: calc(100vh - var(--header-h));
+      display: grid; place-items: center;
+      padding: 2rem 1.1rem 3rem;
+      position: relative; overflow: hidden;
+    }
+    .auth-wrap::before, .auth-wrap::after {
+      content: ""; position: absolute; border-radius: 50%; filter: blur(72px); pointer-events: none;
+    }
+    .auth-wrap::before {
+      width: 280px; height: 280px; top: 8%; right: 12%;
+      background: #e8a82018; animation: orb 8s ease-in-out infinite;
+    }
+    .auth-wrap::after {
+      width: 320px; height: 320px; bottom: 5%; left: 8%;
+      background: #2dd4bf18; animation: orb 8s ease-in-out 2s infinite;
+    }
+    @keyframes orb {
+      0%, 100% { opacity: 0.55; transform: scale(1); }
+      50% { opacity: 0.9; transform: scale(1.08); }
+    }
+    .auth-card {
+      position: relative; z-index: 1; width: 100%; max-width: 420px;
+      backdrop-filter: blur(14px) saturate(150%);
+      background: linear-gradient(160deg, #143a6ef0 0%, #0e2848eb 50%, #103060e8 100%);
+      border: 1px solid #38bdf830; border-radius: 1.35rem;
+      box-shadow: inset 0 1px #38bdf822, 0 16px 48px #0a1f4a80;
+      padding: 1.75rem 1.6rem 1.85rem;
+      animation: fadeUp 0.55s ease-out;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .et-badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.25rem 0.7rem; border-radius: 999px;
+      font-family: var(--mono); font-size: 0.625rem; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      background: #e8a8201a; color: var(--amber-light); border: 1px solid #e8a82040;
+      margin-bottom: 0.85rem;
+    }
+    .auth-card h1 {
+      font-family: var(--display); font-size: 1.55rem; font-weight: 800;
+      letter-spacing: -0.02em; color: var(--text); margin: 0 0 0.45rem;
+    }
+    .auth-card .lead { color: var(--muted); margin: 0 0 1.25rem; font-size: 0.92rem; }
+    .auth-tabs {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem;
+      padding: 0.3rem; border-radius: 999px;
+      background: #ffffff08; border: 1px solid var(--line); margin-bottom: 1.1rem;
+    }
+    .auth-tabs button {
+      border: 0; background: transparent; color: var(--muted);
+      border-radius: 999px; padding: 0.55rem; font-weight: 600; font-size: 0.85rem;
+    }
+    .auth-tabs button.active {
+      background: linear-gradient(135deg, #f5c84222, #e8a82018);
+      color: var(--amber-light); box-shadow: inset 0 0 0 1px #e8a82040;
+    }
+    .auth-divider {
+      display: flex; align-items: center; gap: 0.75rem;
+      color: var(--muted); font-size: 0.72rem; letter-spacing: 0.06em;
+      text-transform: uppercase; margin: 1rem 0;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ""; flex: 1; height: 1px; background: var(--line);
+    }
+    .sso-btn { width: 100%; }
+
+    /* ── App shell ── */
+    .shell {
+      display: none;
+      max-width: 1480px; margin: 0 auto;
+      min-height: calc(100vh - var(--header-h));
+      padding: 1rem; gap: 1rem;
+    }
+    .shell.on { display: flex; flex-direction: column; }
+    @media (min-width: 960px) {
+      .shell.on { flex-direction: row; align-items: stretch; }
+    }
+
+    /* ── Library rail ── */
+    .ets-rail {
+      width: 100%;
+      background: #090e2cf0;
+      backdrop-filter: blur(16px);
+      border: 1px solid #ffffff0d;
+      border-radius: 1.15rem;
+      display: flex; flex-direction: column;
+      max-height: 42vh; overflow: hidden;
+      box-shadow: 0 8px 32px #04071840;
+    }
+    @media (min-width: 960px) {
+      .ets-rail {
+        width: var(--rail); flex-shrink: 0; max-height: none;
+        position: sticky; top: calc(var(--header-h) + 1rem);
+        height: calc(100vh - var(--header-h) - 2rem);
+      }
+    }
+    .ets-rail-section {
+      padding: 0.95rem 0.95rem 0.75rem;
+      border-bottom: 1px solid #ffffff0d;
+    }
+    .section-label {
+      font-family: var(--mono); font-size: 0.625rem; font-weight: 600;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal);
+      margin: 0;
+    }
+    .rail-create {
+      display: flex; gap: 0.45rem; margin-top: 0.7rem;
+    }
+    .rail-create .et-input { padding: 0.5rem 0.7rem; font-size: 0.82rem; }
+    .ets-rail-scroll {
+      flex: 1; overflow: auto; padding: 0.55rem;
+      scrollbar-width: thin; scrollbar-color: #ffffff22 transparent;
+    }
+    .tree-project { margin-bottom: 0.25rem; }
+    .tree-row {
+      display: flex; align-items: center; gap: 0.15rem;
+    }
+    .ets-tree-item {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; gap: 0.45rem;
+      text-align: left; border: 0; background: transparent;
+      color: var(--text-secondary); border-radius: 0.65rem;
+      padding: 0.5rem 0.55rem; font-size: 0.84rem; font-weight: 600;
+      transition: background 0.15s, color 0.15s;
+    }
+    .ets-tree-item:hover { background: #ffffff0a; color: var(--text); }
+    .ets-tree-item.active {
+      background: #e8a82014; color: var(--amber-light);
+      box-shadow: inset 3px 0 0 var(--amber);
+    }
+    .ets-tree-item .chev { opacity: 0.55; width: 14px; flex-shrink: 0; }
+    .ets-tree-item .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ets-tree-item .count {
+      margin-left: auto; font-family: var(--mono); font-size: 0.65rem;
+      color: var(--muted); font-weight: 500;
+    }
+    .tree-kids { padding: 0.15rem 0 0.35rem 0.55rem; }
+    .folder-row, .creative-row {
+      display: flex; align-items: center; gap: 0.45rem;
+      width: 100%; text-align: left; border: 0; background: transparent;
+      color: var(--muted); border-radius: 0.55rem;
+      padding: 0.4rem 0.5rem; font-size: 0.8rem;
+      transition: background 0.15s, color 0.15s;
+    }
+    .folder-row:hover, .creative-row:hover { background: #ffffff08; color: var(--text-secondary); }
+    .creative-row.active {
+      background: #2dd4bf14; color: var(--text);
+      box-shadow: inset 3px 0 0 var(--teal);
+    }
+    .creative-row img {
+      width: 28px; height: 28px; border-radius: 5px; object-fit: cover;
+      background: #000; border: 1px solid var(--line); flex-shrink: 0;
+    }
+    .creative-row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: 550; }
+    .rail-footer {
+      padding: 0.65rem 0.75rem; border-top: 1px solid #ffffff0d;
+      display: flex; gap: 0.35rem; flex-wrap: wrap;
+    }
+    .empty-mini {
+      text-align: center; padding: 1.5rem 0.75rem; color: var(--muted); font-size: 0.8rem;
+    }
+    .empty-mini strong { display: block; color: var(--text-secondary); margin-bottom: 0.25rem; font-size: 0.85rem; }
+
+    /* ── Stage ── */
+    .ets-stage {
+      flex: 1; min-width: 0;
+      background: linear-gradient(160deg, #143a6ee6 0%, #0e2848e0 55%, #103060dc 100%);
+      border: 1px solid #38bdf826; border-radius: 1.15rem;
+      box-shadow: inset 0 1px #38bdf81a, 0 12px 40px #0a1f4a55;
+      padding: 1.15rem 1.2rem 1.4rem;
+      display: flex; flex-direction: column; gap: 1rem;
+      animation: fadeUp 0.45s ease-out;
+    }
+    .ets-stage-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+    }
+    .ets-stage-head h2 {
+      font-family: var(--display); font-size: 1.45rem; font-weight: 800;
+      letter-spacing: -0.02em; color: var(--text); margin: 0 0 0.25rem;
+    }
+    .ets-stage-head p { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 38rem; }
+    .crumb-path {
+      font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem;
+    }
+    .crumb-path span { color: var(--teal-bright); }
+
+    .dropzone {
+      border: 1.5px dashed #38bdf840; border-radius: 1.1rem;
+      background: #38bdf808; padding: 1.75rem 1.25rem;
+      text-align: center; transition: border-color 0.2s, background 0.2s, transform 0.2s;
+      cursor: pointer;
+    }
+    .dropzone:hover, .dropzone.drag {
+      border-color: #2dd4bf80; background: #2dd4bf12; transform: translateY(-1px);
+    }
+    .dropzone .icon-ring {
+      width: 3rem; height: 3rem; margin: 0 auto 0.85rem;
+      border-radius: 0.9rem; display: grid; place-items: center;
+      background: radial-gradient(circle at 30% 30%, #2dd4bf28, #38bdf812);
+      border: 1px solid #38bdf830; color: var(--teal);
+    }
+    .dropzone h3 {
+      font-family: var(--display); font-size: 1.05rem; margin: 0 0 0.3rem; color: var(--text);
+    }
+    .dropzone p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+    .dropzone input[type=file] { display: none; }
+    .drop-actions {
+      display: flex; justify-content: center; gap: 0.55rem; flex-wrap: wrap; margin-top: 1rem;
+    }
+    .file-name {
+      margin-top: 0.75rem; font-size: 0.8rem; color: var(--teal-bright);
+      min-height: 1.2em;
+    }
+
+    .toolbar-compact {
+      display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
+      padding: 0.65rem 0.75rem; border-radius: 0.85rem;
+      background: #ffffff06; border: 1px solid var(--line);
+    }
+
+    .metrics {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.65rem;
+    }
+    @media (min-width: 720px) {
+      .metrics { grid-template-columns: repeat(4, 1fr); }
+    }
+    .metric {
+      backdrop-filter: blur(10px);
+      background: linear-gradient(145deg, #143a6eeb, #103060e0);
+      border: 1px solid #38bdf826; border-radius: 0.9rem;
+      padding: 0.85rem 0.95rem;
+    }
+    .metric .k {
+      font-size: 0.7rem; color: var(--muted); margin-bottom: 0.25rem;
+    }
+    .metric .v {
+      font-family: var(--display); font-weight: 800; font-size: 1.25rem;
+      color: var(--amber); letter-spacing: -0.02em; line-height: 1.1;
+    }
+    .metric .v.teal { color: var(--teal); }
+
+    .workspace-grid {
+      display: grid; gap: 1rem;
+    }
+    @media (min-width: 1100px) {
+      .workspace-grid { grid-template-columns: 1fr 220px; align-items: start; }
+    }
+    .preview-pane {
+      border-radius: 1rem; overflow: hidden;
+      border: 1px solid #38bdf826; background: #040718;
+      min-height: 280px; display: flex; flex-direction: column;
+    }
+    .preview-chrome {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      padding: 0.65rem 0.85rem; border-bottom: 1px solid #ffffff0a;
+      background: #090e2ce6;
+    }
+    .segmented {
+      display: flex; flex-wrap: wrap; gap: 0.25rem;
+      padding: 0.2rem; border-radius: 999px; background: #ffffff08;
+    }
+    .segmented button {
+      border: 0; background: transparent; color: var(--muted);
+      border-radius: 999px; padding: 0.4rem 0.75rem;
+      font-size: 0.75rem; font-weight: 650;
+      transition: background 0.15s, color 0.15s;
+    }
+    .segmented button.active {
+      background: linear-gradient(135deg, #f5c842, #e8a820);
+      color: #0a1f4a;
+    }
+    .preview-body {
+      flex: 1; display: grid; place-items: center; padding: 0.75rem; min-height: 320px;
+    }
+    .preview-body img {
+      max-width: 100%; max-height: min(58vh, 640px); object-fit: contain;
+      border-radius: 0.35rem;
+    }
+
+    .runs-panel {
+      border: 1px solid #ffffff12; border-radius: 0.95rem;
+      background: #ffffff05; padding: 0.75rem;
+    }
+    .runs-panel h4 {
+      font-family: var(--mono); font-size: 0.625rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted); margin: 0 0 0.55rem; font-weight: 600;
+    }
+    .run-item {
+      width: 100%; text-align: left; border: 1px solid transparent;
+      background: transparent; border-radius: 0.65rem;
+      padding: 0.55rem 0.6rem; color: var(--muted); margin-bottom: 0.25rem;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .run-item:hover { background: #ffffff08; color: var(--text-secondary); }
+    .run-item.active {
+      background: #2dd4bf12; border-color: #2dd4bf40; color: var(--text);
+    }
+    .run-item .eng { font-weight: 650; font-size: 0.8rem; display: block; }
+    .run-item .meta { font-size: 0.68rem; opacity: 0.8; margin-top: 0.15rem; }
+
+    .busy-bar {
+      height: 3px; border-radius: 999px; overflow: hidden;
+      background: #ffffff10; margin-top: 0.35rem;
+    }
+    .busy-bar > i {
+      display: block; height: 100%; width: 40%;
+      background: linear-gradient(90deg, var(--teal), var(--amber));
+      animation: slide 1.1s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(280%); }
+    }
+    .spinner {
+      width: 14px; height: 14px; border: 2px solid rgba(10,31,74,0.25);
+      border-top-color: #0a1f4a; border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
-    .proj {
-      border: 1px solid transparent; border-radius: 10px; padding: 8px 10px; margin-bottom: 4px;
-      cursor: pointer; color: var(--muted);
+    .toast {
+      position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
+      z-index: 80; max-width: min(92vw, 420px);
+      padding: 0.75rem 1rem; border-radius: 0.75rem;
+      background: #1a0a12ee; border: 1px solid #fb718555; color: #fecdd3;
+      font-size: 0.85rem; box-shadow: 0 12px 40px #0008;
+      animation: fadeUp 0.3s ease-out;
     }
-    .proj:hover { background: rgba(255,255,255,0.04); color: var(--text); }
-    .proj.active { background: rgba(232,168,32,0.14); border-color: rgba(232,168,32,0.35); color: var(--text); }
-    .proj .name { font-weight: 600; font-size: 0.9rem; }
-    .proj .sub { font-size: 0.72rem; opacity: 0.8; margin-top: 2px; }
-    .folder-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 12px 4px 6px; }
-    .creative {
-      display: flex; gap: 8px; align-items: center;
-      border-radius: 10px; padding: 7px 8px; cursor: pointer; color: var(--muted);
-      border: 1px solid transparent;
+
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 60;
+      background: #040718b3; backdrop-filter: blur(6px);
+      display: grid; place-items: center; padding: 1rem;
     }
-    .creative:hover { background: rgba(255,255,255,0.04); color: var(--text); }
-    .creative.active { background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.3); color: var(--text); }
-    .creative .thumb {
-      width: 36px; height: 36px; border-radius: 6px; object-fit: cover; background: #000; flex-shrink: 0;
-      border: 1px solid var(--line);
+    .modal {
+      width: 100%; max-width: 400px;
+      background: linear-gradient(160deg, #143a6ef5, #0e2848f0);
+      border: 1px solid #38bdf830; border-radius: 1.15rem;
+      padding: 1.35rem; box-shadow: 0 24px 64px #0008;
     }
-    .creative .meta-line { min-width: 0; flex: 1; }
-    .creative .meta-line .t { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .creative .meta-line .s { font-size: 0.7rem; opacity: 0.75; }
-    .empty { color: var(--muted); font-size: 0.85rem; padding: 12px 6px; line-height: 1.45; }
-    .runs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
-    .run-chip {
-      border: 1px solid var(--line); background: rgba(255,255,255,0.04);
-      border-radius: 10px; padding: 8px 10px; cursor: pointer; font-size: 0.78rem; color: var(--muted);
+    .modal h3 {
+      font-family: var(--display); margin: 0 0 0.35rem; color: var(--text); font-size: 1.15rem;
     }
-    .run-chip.active { border-color: var(--teal); color: var(--text); }
-    .drop {
-      border: 1px dashed rgba(255,255,255,0.22); border-radius: 14px; padding: 18px;
-      text-align: center; color: var(--muted); margin-bottom: 14px;
-    }
-    .drop.drag { border-color: var(--teal); background: rgba(45,212,191,0.08); color: var(--text); }
-    .new-proj {
-      display: none; margin-top: 8px; padding: 10px; border-radius: 10px;
-      background: rgba(255,255,255,0.04); border: 1px solid var(--line);
-    }
-    .new-proj.on { display: block; }
-    @media (max-width: 860px) {
-      .shell.on { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-      .rail { border-right: 0; border-bottom: 1px solid var(--line); max-height: 40vh; }
+    .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .auth-card, .ets-stage, .auth-wrap::before, .auth-wrap::after, .toast { animation: none; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div class="brand">
-      <img src="/static/aigaze-logo.png" alt="AI Gaze" onerror="this.style.display='none'" />
-      <span>AI Gaze™ Studio</span>
-    </div>
-    <div class="row" style="flex:0; min-width:auto; gap:10px;">
-      <span class="crumb hidden" id="crumb"></span>
-      <a class="btn btn-secondary btn-sm hidden" id="checkoutLink" href="{{CHECKOUT_URL}}" target="_blank" rel="noreferrer">Upgrade</a>
-      <button class="btn-ghost btn-sm hidden" id="signoutBtn" type="button">Sign out</button>
+  <header class="ets-header">
+    <div class="ets-header-inner">
+      <div class="brand-lockup">
+        <a class="et" href="https://www.elastictree.com" target="_blank" rel="noreferrer" title="Elastic Tree">
+          <img class="et-mark" src="/static/elastic-tree-logo.png" alt="Elastic Tree" onerror="this.src='/static/aigaze-logo.png'" />
+        </a>
+        <span class="sep" aria-hidden="true"></span>
+        <span class="product">AI <em>Gaze</em>™</span>
+      </div>
+      <div class="header-actions">
+        <span class="user-chip hidden" id="userChip"><b id="userEmail"></b></span>
+        <span class="plan-pill hidden" id="planPill">Free</span>
+        <a class="et-btn-secondary btn-sm hidden" id="checkoutLink" href="{{CHECKOUT_URL}}" target="_blank" rel="noreferrer">Upgrade</a>
+        <button class="et-btn-ghost hidden" id="signoutBtn" type="button">Sign out</button>
+      </div>
     </div>
   </header>
 
-  <main class="auth-main" id="authMain">
-    <div id="authCard" class="card">
-      <h1>Sign in to AI Gaze Studio</h1>
-      <p class="lead">Same Elastic Tree account as other studios — continue with Google on elastictree.com, or use local email.</p>
+  <div class="auth-wrap" id="authMain">
+    <div class="auth-card">
+      <div class="et-badge">Studio access</div>
+      <h1>Sign in to AI Gaze</h1>
+      <p class="lead">One Elastic Tree account across studios. Predict attention, save runs to projects, export client-ready PDFs.</p>
       <p class="error" id="ssoError">{{SSO_ERROR}}</p>
-      <div id="ssoWrap" class="hidden" style="margin-bottom:14px;">
-        <a class="btn btn-primary" id="ssoBtn" href="#">Continue with Google</a>
-        <p style="color:var(--muted);font-size:0.8rem;margin:10px 0 0;">or local email</p>
+      <div id="ssoWrap" class="hidden">
+        <a class="et-btn-primary sso-btn" id="ssoBtn" href="#">Continue with Elastic Tree SSO</a>
+        <div class="auth-divider">or email</div>
       </div>
-      <div class="row">
-        <button class="tab active" type="button" data-auth="signin">Sign in</button>
-        <button class="tab" type="button" data-auth="register">Create account</button>
+      <div class="auth-tabs">
+        <button type="button" class="active" data-auth="signin">Sign in</button>
+        <button type="button" data-auth="register">Create account</button>
       </div>
       <form id="authForm">
-        <label>Email</label>
-        <input type="email" id="email" required autocomplete="username" />
-        <label>Password</label>
-        <input type="password" id="password" required autocomplete="current-password" />
-        <div class="row">
-          <button class="btn-primary" type="submit" id="authSubmit">Sign in</button>
+        <div class="et-field">
+          <label class="et-label" for="email">Email</label>
+          <input class="et-input" type="email" id="email" required autocomplete="username" placeholder="you@company.com" />
         </div>
+        <div class="et-field">
+          <label class="et-label" for="password">Password</label>
+          <input class="et-input" type="password" id="password" required autocomplete="current-password" placeholder="••••••••" />
+        </div>
+        <button class="et-btn-primary" style="width:100%" type="submit" id="authSubmit">Sign in</button>
         <p class="error hidden" id="authError"></p>
       </form>
     </div>
-  </main>
+  </div>
 
   <div class="shell" id="shell">
-    <aside class="rail" id="rail">
-      <div class="rail-head">
-        <h2>Library</h2>
-        <button class="btn-secondary btn-sm" type="button" id="newProjectBtn">+ Project</button>
-      </div>
-      <div class="new-proj" id="newProjForm">
-        <label>Project name</label>
-        <input type="text" id="newProjName" placeholder="Brand X Summer Pack" maxlength="120" />
-        <label>Client (optional)</label>
-        <input type="text" id="newProjClient" placeholder="Client name" maxlength="120" />
-        <div class="row">
-          <button class="btn-primary btn-sm" type="button" id="createProjectBtn">Create</button>
-          <button class="btn-ghost btn-sm" type="button" id="cancelProjectBtn">Cancel</button>
+    <aside class="ets-rail" id="rail" aria-label="Project library">
+      <div class="ets-rail-section">
+        <p class="section-label">Library</p>
+        <div class="rail-create">
+          <input class="et-input" type="text" id="quickProjectName" placeholder="New project name" maxlength="120" />
+          <button class="et-btn-icon" type="button" id="quickCreateProject" title="Create project" aria-label="Create project">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
         </div>
-        <p class="error hidden" id="projError"></p>
+        <p class="hint">Projects hold creatives &amp; analysis history</p>
       </div>
-      <div id="projectList"></div>
-      <div class="folder-label">Creatives</div>
-      <div id="creativeList"></div>
-      <div class="row" style="margin-top:14px;">
-        <button class="btn-secondary btn-sm" type="button" id="newFolderBtn">+ Folder</button>
-        <button class="btn-ghost btn-sm" type="button" id="deleteProjectBtn">Delete project</button>
+      <div class="ets-rail-scroll" id="projectTree"></div>
+      <div class="rail-footer">
+        <button class="et-btn-ghost btn-sm" type="button" id="newFolderBtn">+ Folder</button>
+        <button class="et-btn-ghost btn-sm" type="button" id="deleteProjectBtn">Delete project</button>
       </div>
-      <p class="error hidden" id="railError"></p>
     </aside>
 
-    <section class="workspace" id="workspace">
-      <div class="drop" id="dropZone">
-        <p style="margin:0 0 10px;">Drop a creative here, or choose a file</p>
+    <main class="ets-stage" id="workspace">
+      <div class="ets-stage-head">
+        <div>
+          <p class="crumb-path" id="crumb">Library · <span>Select a project</span></p>
+          <h2 id="stageTitle">Project library</h2>
+          <p id="stageLead">Organize creatives by engagement, run attention analysis, and reopen any saved report.</p>
+        </div>
+        <div class="header-actions" id="stageActions"></div>
+      </div>
+
+      <div class="dropzone" id="dropZone" tabindex="0" role="button" aria-label="Upload creative">
+        <div class="icon-ring" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+        </div>
+        <h3>Drop a creative to analyse</h3>
+        <p>JPG · PNG · WebP · BMP — packs, ads, shelves, digital screens</p>
         <input type="file" id="file" accept="image/*" />
-        <div class="row" style="justify-content:center; margin-top:10px;">
-          <button class="btn-primary" type="button" id="uploadBtn">Upload &amp; analyse</button>
-          <button class="btn-secondary" type="button" id="uploadOnlyBtn">Upload only</button>
+        <div class="file-name" id="fileName"></div>
+        <div class="drop-actions">
+          <button class="et-btn-primary" type="button" id="uploadBtn">Upload &amp; analyse</button>
+          <button class="et-btn-secondary" type="button" id="uploadOnlyBtn">Upload only</button>
         </div>
-        <p class="error hidden" id="analyzeError"></p>
-        <p class="ok" id="userLine" style="margin-top:10px;"></p>
+        <div class="busy-bar hidden" id="busyBar"><i></i></div>
       </div>
 
-      <div id="emptyWorkspace" class="card">
-        <h1>Select or upload a creative</h1>
-        <p class="lead">Projects keep creatives and analysis runs together — same pattern as DataWiz / TScribe.</p>
+      <div id="emptyWorkspace">
+        <div class="empty-mini" style="padding:2rem 1rem;">
+          <strong>Select a creative or upload above</strong>
+          Same library pattern as DataWiz — project → folder → asset → run.
+        </div>
       </div>
 
-      <div id="results" class="card hidden">
-        <div class="toolbar row" style="justify-content:space-between; margin-bottom:8px;">
-          <div>
-            <h1 id="creativeTitle">Creative</h1>
-            <p class="lead" style="margin:0;" id="creativeSub"></p>
+      <div id="results" class="hidden">
+        <div class="toolbar-compact">
+          <div style="flex:1;min-width:140px;">
+            <div class="section-label" style="color:var(--muted);margin-bottom:0.2rem;">Creative</div>
+            <div id="creativeTitle" style="font-family:var(--display);font-weight:700;color:var(--text);"></div>
+            <div id="creativeSub" style="font-size:0.75rem;color:var(--muted);"></div>
           </div>
-          <div class="row" style="flex:0;">
-            <button class="btn-secondary" type="button" id="reanalyzeBtn">Re-analyse</button>
-            <a class="btn btn-primary" id="pdfBtn" href="#">Download PDF</a>
-            <button class="btn-ghost btn-sm" type="button" id="deleteCreativeBtn">Delete</button>
-          </div>
+          <button class="et-btn-secondary btn-sm" type="button" id="reanalyzeBtn">Re-analyse</button>
+          <a class="et-btn-primary btn-sm" id="pdfBtn" href="#">Download PDF</a>
+          <button class="et-btn-ghost btn-sm" type="button" id="deleteCreativeBtn">Delete</button>
         </div>
-        <div class="meta" id="meta"></div>
-        <div class="folder-label">Runs</div>
-        <div class="runs" id="runs"></div>
-        <div class="tabs" id="tabs"></div>
-        <div class="panel"><img id="preview" alt="Analysis preview" /></div>
+        <div class="metrics" id="meta"></div>
+        <div class="workspace-grid">
+          <div class="preview-pane">
+            <div class="preview-chrome">
+              <div class="segmented" id="tabs" role="tablist"></div>
+            </div>
+            <div class="preview-body">
+              <img id="preview" alt="Analysis preview" />
+            </div>
+          </div>
+          <aside class="runs-panel">
+            <h4>Run history</h4>
+            <div id="runs"></div>
+          </aside>
+        </div>
       </div>
-    </section>
+    </main>
+  </div>
+
+  <div class="toast hidden" id="toast" role="alert"></div>
+
+  <div class="modal-backdrop hidden" id="projectModal">
+    <div class="modal" role="dialog" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">New project</h3>
+      <p class="hint" style="margin-bottom:0.9rem;">Name the engagement — optional client label for your library.</p>
+      <div class="et-field">
+        <label class="et-label" for="newProjName">Project name</label>
+        <input class="et-input" id="newProjName" maxlength="120" placeholder="Brand X Summer Pack" />
+      </div>
+      <div class="et-field">
+        <label class="et-label" for="newProjClient">Client (optional)</label>
+        <input class="et-input" id="newProjClient" maxlength="120" placeholder="Client name" />
+      </div>
+      <p class="error hidden" id="projError"></p>
+      <div class="modal-actions">
+        <button class="et-btn-ghost" type="button" id="cancelProjectBtn">Cancel</button>
+        <button class="et-btn-primary btn-sm" type="button" id="createProjectBtn">Create</button>
+      </div>
+    </div>
   </div>
 
   <script>
     const SSO_ON = "{{SSO_ON}}" === "1";
     let authMode = "signin";
     let library = { projects: [], creatives: [] };
+    let expanded = {};
     let selectedProjectId = null;
     let selectedFolderId = null;
     let selectedCreativeId = null;
     let selectedRunId = null;
-    let result = null; // live analyse payload (base64 images)
+    let result = null;
     let activeTab = "heatmap";
     let busy = false;
 
     const $ = (id) => document.getElementById(id);
     const tabs = [
-      ["heatmap", "Heat Map"],
-      ["hotspot", "Hot Spot"],
-      ["gaze", "Gaze Path"],
-      ["elements", "Top Elements"],
+      ["heatmap", "Heat"],
+      ["hotspot", "Hot spot"],
+      ["gaze", "Gaze"],
+      ["elements", "Elements"],
       ["balance", "Balance"],
       ["original", "Original"],
     ];
@@ -275,6 +708,14 @@
       if (typeof data.detail === "string") return data.detail;
       if (Array.isArray(data.detail) && data.detail[0]?.msg) return data.detail[0].msg;
       return data.error || fallback;
+    }
+
+    function toast(msg) {
+      const el = $("toast");
+      el.textContent = msg;
+      el.classList.remove("hidden");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.add("hidden"), 4200);
     }
 
     async function api(path, opts = {}) {
@@ -294,9 +735,13 @@
     function projectById(id) {
       return (library.projects || []).find((p) => p.id === id) || null;
     }
-
     function creativesForProject(pid) {
       return (library.creatives || []).filter((c) => c.projectId === pid);
+    }
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
     }
 
     function showAuth(authed, me) {
@@ -304,20 +749,126 @@
       $("shell").classList.toggle("on", authed);
       $("signoutBtn").classList.toggle("hidden", !authed);
       $("checkoutLink").classList.toggle("hidden", !authed);
-      $("crumb").classList.toggle("hidden", !authed);
+      $("userChip").classList.toggle("hidden", !authed);
+      $("planPill").classList.toggle("hidden", !authed);
       if (authed && me?.user) {
         const u = me.user;
-        $("userLine").textContent = u.email + (u.plan ? ` · ${u.plan}` : "");
+        $("userEmail").textContent = u.email || "";
+        $("planPill").textContent = (u.plan || "free").toString();
         if (me.checkout_url) $("checkoutLink").href = me.checkout_url;
       }
     }
 
+    function updateCrumb() {
+      const p = projectById(selectedProjectId);
+      const c = (library.creatives || []).find((x) => x.id === selectedCreativeId);
+      if (c && p) {
+        $("crumb").innerHTML = `Library · <span>${escapeHtml(p.name)}</span> · ${escapeHtml(c.name)}`;
+        $("stageTitle").textContent = c.name;
+        $("stageLead").textContent = `${c.width}×${c.height} · ${c.fileName}`;
+      } else if (p) {
+        $("crumb").innerHTML = `Library · <span>${escapeHtml(p.name)}</span>`;
+        $("stageTitle").textContent = p.name;
+        $("stageLead").textContent = p.clientName
+          ? `Client · ${p.clientName}`
+          : "Upload creatives, run attention analysis, keep every report in this project.";
+      } else {
+        $("crumb").innerHTML = `Library · <span>Select a project</span>`;
+        $("stageTitle").textContent = "Project library";
+        $("stageLead").textContent = "Organize creatives by engagement, run attention analysis, and reopen any saved report.";
+      }
+    }
+
+    function renderRail() {
+      const root = $("projectTree");
+      const projects = library.projects || [];
+      if (!projects.length) {
+        root.innerHTML = `<div class="empty-mini"><strong>No projects yet</strong>Name a project above and press +</div>`;
+        return;
+      }
+      root.innerHTML = projects.map((p) => {
+        const open = expanded[p.id] ?? (p.id === selectedProjectId);
+        const creatives = creativesForProject(p.id);
+        const folders = p.folders || [];
+        const active = p.id === selectedProjectId;
+        let kids = "";
+        if (open) {
+          for (const f of folders) {
+            const inFolder = creatives.filter((c) => c.folderId === f.id);
+            kids += `<button type="button" class="folder-row" data-fid="${f.id}" data-pid="${p.id}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>
+              <span class="t">${escapeHtml(f.name)}</span>
+              <span class="count">${inFolder.length}</span>
+            </button>`;
+            kids += inFolder.map((c) => creativeBtn(c)).join("");
+          }
+          const unfiled = creatives.filter((c) => !c.folderId);
+          kids += unfiled.map((c) => creativeBtn(c)).join("");
+          if (!creatives.length) {
+            kids += `<div class="empty-mini" style="padding:0.75rem 0.4rem;">Upload a creative into this project</div>`;
+          }
+        }
+        return `<div class="tree-project">
+          <div class="tree-row">
+            <button type="button" class="ets-tree-item ${active ? "active" : ""}" data-pid="${p.id}">
+              <span class="chev">${open ? "▾" : "▸"}</span>
+              <span class="label">${escapeHtml(p.name)}</span>
+              <span class="count">${creatives.length}</span>
+            </button>
+          </div>
+          <div class="tree-kids ${open ? "" : "hidden"}">${kids}</div>
+        </div>`;
+      }).join("");
+
+      root.querySelectorAll("[data-pid].ets-tree-item").forEach((el) => {
+        el.addEventListener("click", () => {
+          const pid = el.dataset.pid;
+          if (selectedProjectId === pid) {
+            expanded[pid] = !(expanded[pid] ?? true);
+          } else {
+            selectedProjectId = pid;
+            expanded[pid] = true;
+            selectedFolderId = null;
+            selectedCreativeId = null;
+            result = null;
+            renderEmpty();
+          }
+          renderRail();
+          updateCrumb();
+        });
+      });
+      root.querySelectorAll("[data-cid]").forEach((el) => {
+        el.addEventListener("click", () => openCreative(el.dataset.cid, true));
+      });
+      root.querySelectorAll("[data-fid]").forEach((el) => {
+        el.addEventListener("click", () => {
+          selectedProjectId = el.dataset.pid;
+          selectedFolderId = el.dataset.fid;
+          renderRail();
+          updateCrumb();
+        });
+      });
+    }
+
+    function creativeBtn(c) {
+      return `<button type="button" class="creative-row ${c.id === selectedCreativeId ? "active" : ""}" data-cid="${c.id}">
+        <img src="/api/creatives/${c.id}/image" alt="" loading="lazy" />
+        <span class="t">${escapeHtml(c.name)}</span>
+      </button>`;
+    }
+
+    function renderEmpty() {
+      $("emptyWorkspace").classList.remove("hidden");
+      $("results").classList.add("hidden");
+      updateCrumb();
+    }
+
     async function refreshLibrary() {
-      const snap = await api("/api/library");
-      library = snap;
+      library = await api("/api/library");
       if (!selectedProjectId || !projectById(selectedProjectId)) {
         selectedProjectId = library.projects?.[0]?.id || null;
       }
+      if (selectedProjectId) expanded[selectedProjectId] = true;
       renderRail();
       updateCrumb();
     }
@@ -335,6 +886,7 @@
         if (!selectedProjectId || !projectById(selectedProjectId)) {
           selectedProjectId = library.projects?.[0]?.id || null;
         }
+        if (selectedProjectId) expanded[selectedProjectId] = true;
         renderRail();
         updateCrumb();
         if (selectedCreativeId) await openCreative(selectedCreativeId, false);
@@ -343,85 +895,17 @@
       return me;
     }
 
-    function updateCrumb() {
-      const p = projectById(selectedProjectId);
-      $("crumb").innerHTML = p
-        ? `Project · <strong>${escapeHtml(p.name)}</strong>`
-        : "";
-    }
-
-    function escapeHtml(s) {
-      return String(s || "").replace(/[&<>"']/g, (c) => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-      }[c]));
-    }
-
-    function renderRail() {
-      const list = $("projectList");
-      list.innerHTML = (library.projects || []).map((p) => {
-        const n = creativesForProject(p.id).length;
-        return `<div class="proj ${p.id === selectedProjectId ? "active" : ""}" data-pid="${p.id}">
-          <div class="name">${escapeHtml(p.name)}</div>
-          <div class="sub">${n} creative${n === 1 ? "" : "s"}${p.clientName ? " · " + escapeHtml(p.clientName) : ""}</div>
-        </div>`;
-      }).join("") || `<p class="empty">Create a project to start.</p>`;
-
-      list.querySelectorAll("[data-pid]").forEach((el) => {
-        el.addEventListener("click", () => {
-          selectedProjectId = el.dataset.pid;
-          selectedFolderId = null;
-          selectedCreativeId = null;
-          result = null;
-          renderRail();
-          updateCrumb();
-          renderEmpty();
-        });
-      });
-
-      const p = projectById(selectedProjectId);
-      const creatives = creativesForProject(selectedProjectId);
-      const folders = p?.folders || [];
-      let html = "";
-      if (folders.length) {
-        for (const f of folders) {
-          const inFolder = creatives.filter((c) => c.folderId === f.id);
-          html += `<div class="folder-label">${escapeHtml(f.name)}</div>`;
-          html += inFolder.map(creativeRow).join("") || `<p class="empty">Empty folder</p>`;
-        }
-        html += `<div class="folder-label">Unfiled</div>`;
-        html += creatives.filter((c) => !c.folderId).map(creativeRow).join("")
-          || `<p class="empty">No unfiled creatives</p>`;
-      } else {
-        html = creatives.map(creativeRow).join("")
-          || `<p class="empty">Upload a creative into this project.</p>`;
-      }
-      $("creativeList").innerHTML = html;
-      $("creativeList").querySelectorAll("[data-cid]").forEach((el) => {
-        el.addEventListener("click", () => openCreative(el.dataset.cid, true));
-      });
-    }
-
-    function creativeRow(c) {
-      return `<div class="creative ${c.id === selectedCreativeId ? "active" : ""}" data-cid="${c.id}">
-        <img class="thumb" src="/api/creatives/${c.id}/image" alt="" />
-        <div class="meta-line">
-          <div class="t">${escapeHtml(c.name)}</div>
-          <div class="s">${c.width}×${c.height}${c.latestRunId ? " · analysed" : ""}</div>
-        </div>
-      </div>`;
-    }
-
-    function renderEmpty() {
-      $("emptyWorkspace").classList.remove("hidden");
-      $("results").classList.add("hidden");
-    }
-
     async function openCreative(cid, fetchRuns) {
       selectedCreativeId = cid;
+      const c = (library.creatives || []).find((x) => x.id === cid);
+      if (c) {
+        selectedProjectId = c.projectId;
+        expanded[c.projectId] = true;
+      }
       renderRail();
+      updateCrumb();
       $("emptyWorkspace").classList.add("hidden");
       $("results").classList.remove("hidden");
-      const c = (library.creatives || []).find((x) => x.id === cid);
       $("creativeTitle").textContent = c?.name || "Creative";
       $("creativeSub").textContent = c ? `${c.width}×${c.height} · ${c.fileName}` : "";
 
@@ -431,8 +915,7 @@
           const data = await api(`/api/creatives/${cid}`);
           runs = data.runs || [];
         } catch (err) {
-          $("analyzeError").textContent = err.message;
-          $("analyzeError").classList.remove("hidden");
+          toast(err.message);
         }
       }
 
@@ -441,7 +924,6 @@
         renderResultsLive(runs);
         return;
       }
-
       result = null;
       if (runs.length) {
         selectedRunId = runs[0].id;
@@ -450,57 +932,65 @@
         selectedRunId = null;
         $("meta").innerHTML = "";
         $("tabs").innerHTML = "";
-        $("runs").innerHTML = "";
+        $("runs").innerHTML = `<div class="empty-mini" style="padding:0.5rem 0;">No runs yet</div>`;
         $("preview").src = `/api/creatives/${cid}/image`;
-        $("pdfBtn").removeAttribute("href");
         $("pdfBtn").classList.add("hidden");
       }
     }
 
-    function renderRunChips(runs) {
+    function renderRunList(runs) {
       $("runs").innerHTML = (runs || []).map((r) => {
-        const conf = r.confidence != null ? ` · ${Math.round(r.confidence)}` : "";
+        const conf = r.confidence != null ? ` · ${Math.round(Number(r.confidence))}` : "";
         const when = (r.createdAt || "").slice(0, 16).replace("T", " ");
-        return `<button type="button" class="run-chip ${r.id === selectedRunId ? "active" : ""}" data-rid="${r.id}">
-          ${escapeHtml(r.engine || "Run")}${conf}<br/><span style="opacity:0.7">${escapeHtml(when)}</span>
+        return `<button type="button" class="run-item ${r.id === selectedRunId ? "active" : ""}" data-rid="${r.id}">
+          <span class="eng">${escapeHtml(r.engine || "Run")}${conf}</span>
+          <div class="meta">${escapeHtml(when)}</div>
         </button>`;
-      }).join("") || `<span class="empty">No runs yet — analyse to create one.</span>`;
+      }).join("") || `<div class="empty-mini" style="padding:0.5rem 0;">No runs yet</div>`;
       $("runs").querySelectorAll("[data-rid]").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const run = runs.find((r) => r.id === btn.dataset.rid);
-          if (run) {
-            result = null;
-            await showRun(run, runs);
-          }
+          if (run) { result = null; await showRun(run, runs); }
         });
       });
     }
 
-    function renderResultsLive(runs) {
-      const m = result.meta || {};
+    function renderMetrics(m, engine, confidence) {
+      const clarity = m.clarity?.score != null ? Math.round(m.clarity.score) : "—";
       $("meta").innerHTML = [
-        ["Engine", m.engine || "—"],
-        ["Confidence", m.confidence != null ? `${m.confidence}` : "—"],
-        ["Clarity", m.clarity?.score != null ? `${Math.round(m.clarity.score)}` : (m.clarity ?? "—")],
-        ["Scene", m.scene_type || "—"],
-      ].map(([k, v]) => `<div class="chip"><b>${escapeHtml(String(v))}</b><span>${k}</span></div>`).join("");
+        ["Engine", engine || m.engine || "—", ""],
+        ["Confidence", confidence != null ? confidence : (m.confidence ?? "—"), ""],
+        ["Clarity", clarity, "teal"],
+        ["Scene", m.scene_type || "—", ""],
+      ].map(([k, v, cls]) =>
+        `<div class="metric"><div class="k">${k}</div><div class="v ${cls}">${escapeHtml(String(v))}</div></div>`
+      ).join("");
+    }
 
-      renderRunChips(runs);
+    function bindTabs(getSrc) {
       $("tabs").innerHTML = tabs.map(([id, label]) =>
-        `<button type="button" class="tab ${id === activeTab ? "active" : ""}" data-tab="${id}">${label}</button>`
+        `<button type="button" role="tab" class="${id === activeTab ? "active" : ""}" data-tab="${id}">${label}</button>`
       ).join("");
       $("tabs").querySelectorAll("[data-tab]").forEach((btn) => {
         btn.addEventListener("click", () => {
           activeTab = btn.dataset.tab;
-          const b64 = result.images?.[activeTab];
-          $("preview").src = b64 ? `data:image/png;base64,${b64}` : "";
+          $("preview").src = getSrc(activeTab);
           $("tabs").querySelectorAll("[data-tab]").forEach((b) =>
             b.classList.toggle("active", b.dataset.tab === activeTab)
           );
         });
       });
-      const b64 = result.images?.[activeTab];
-      $("preview").src = b64 ? `data:image/png;base64,${b64}` : "";
+      $("preview").src = getSrc(activeTab);
+    }
+
+    function renderResultsLive(runs) {
+      const m = result.meta || {};
+      renderMetrics(m, m.engine, m.confidence);
+      renderRunList(runs);
+      bindTabs((kind) => {
+        const b64 = result.images?.[kind];
+        return b64 ? `data:image/png;base64,${b64}` : "";
+      });
       if (result.pdf_token) {
         $("pdfBtn").href = `/api/report.pdf?token=${encodeURIComponent(result.pdf_token)}`;
         $("pdfBtn").classList.remove("hidden");
@@ -515,55 +1005,35 @@
     async function showRun(run, runs) {
       selectedRunId = run.id;
       const m = run.meta || {};
-      $("meta").innerHTML = [
-        ["Engine", run.engine || m.engine || "—"],
-        ["Confidence", run.confidence != null ? `${run.confidence}` : "—"],
-        ["Clarity", m.clarity?.score != null ? `${Math.round(m.clarity.score)}` : "—"],
-        ["Scene", m.scene_type || "—"],
-      ].map(([k, v]) => `<div class="chip"><b>${escapeHtml(String(v))}</b><span>${k}</span></div>`).join("");
-
-      renderRunChips(runs || [run]);
-      $("tabs").innerHTML = tabs.map(([id, label]) =>
-        `<button type="button" class="tab ${id === activeTab ? "active" : ""}" data-tab="${id}">${label}</button>`
-      ).join("");
-      const setPreview = (kind) => {
-        $("preview").src = `/api/runs/${run.id}/overlays/${kind}?t=${Date.now()}`;
-      };
-      $("tabs").querySelectorAll("[data-tab]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          activeTab = btn.dataset.tab;
-          setPreview(activeTab);
-          $("tabs").querySelectorAll("[data-tab]").forEach((b) =>
-            b.classList.toggle("active", b.dataset.tab === activeTab)
-          );
-        });
-      });
-      setPreview(activeTab);
+      renderMetrics(m, run.engine, run.confidence);
+      renderRunList(runs || [run]);
+      bindTabs((kind) => `/api/runs/${run.id}/overlays/${kind}?t=${Date.now()}`);
       $("pdfBtn").href = `/api/runs/${run.id}/report.pdf`;
       $("pdfBtn").classList.remove("hidden");
       $("results").classList.remove("hidden");
       $("emptyWorkspace").classList.add("hidden");
     }
 
+    function setBusy(on, label) {
+      busy = on;
+      $("busyBar").classList.toggle("hidden", !on);
+      $("uploadBtn").disabled = on;
+      $("uploadOnlyBtn").disabled = on;
+      $("reanalyzeBtn").disabled = on;
+      if (on && label) {
+        $("uploadBtn").innerHTML = `<span class="spinner"></span> ${label}`;
+      } else {
+        $("uploadBtn").textContent = "Upload & analyse";
+        $("reanalyzeBtn").textContent = "Re-analyse";
+      }
+    }
+
     async function uploadCreative({ analyse }) {
       if (busy) return;
       const file = $("file").files?.[0];
-      if (!file) {
-        $("analyzeError").textContent = "Choose an image first.";
-        $("analyzeError").classList.remove("hidden");
-        return;
-      }
-      if (!selectedProjectId) {
-        $("analyzeError").textContent = "Create or select a project first.";
-        $("analyzeError").classList.remove("hidden");
-        return;
-      }
-      $("analyzeError").classList.add("hidden");
-      busy = true;
-      const btn = analyse ? $("uploadBtn") : $("uploadOnlyBtn");
-      const label = btn.textContent;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner"></span> ${analyse ? "Analysing…" : "Uploading…"}`;
+      if (!file) { toast("Choose an image first."); return; }
+      if (!selectedProjectId) { toast("Create or select a project first."); return; }
+      setBusy(true, analyse ? "Analysing…" : "Uploading…");
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 90000);
       try {
@@ -571,27 +1041,19 @@
         fd.append("file", file);
         if (selectedFolderId) fd.append("folderId", selectedFolderId);
         const creative = await fetch(`/api/projects/${selectedProjectId}/creatives`, {
-          method: "POST",
-          body: fd,
-          credentials: "include",
-          signal: ctrl.signal,
+          method: "POST", body: fd, credentials: "include", signal: ctrl.signal,
         }).then(async (res) => {
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(detailMsg(data, res.statusText));
           return data;
         });
-
         await refreshLibrary();
         selectedCreativeId = creative.id;
-
         if (analyse) {
           const afd = new FormData();
           afd.append("high_confidence", "false");
           const data = await fetch(`/api/creatives/${creative.id}/analyze`, {
-            method: "POST",
-            body: afd,
-            credentials: "include",
-            signal: ctrl.signal,
+            method: "POST", body: afd, credentials: "include", signal: ctrl.signal,
           }).then(async (res) => {
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(detailMsg(body, res.statusText));
@@ -607,36 +1069,26 @@
           await openCreative(creative.id, true);
         }
         $("file").value = "";
+        $("fileName").textContent = "";
       } catch (err) {
-        const msg = err?.name === "AbortError"
-          ? "Timed out. Try a smaller image."
-          : (err.message || "Failed");
-        $("analyzeError").textContent = msg;
-        $("analyzeError").classList.remove("hidden");
+        toast(err?.name === "AbortError" ? "Timed out. Try a smaller image." : (err.message || "Failed"));
       } finally {
         clearTimeout(timer);
-        busy = false;
-        btn.disabled = false;
-        btn.textContent = label;
+        setBusy(false);
       }
     }
 
     async function reanalyze() {
       if (!selectedCreativeId || busy) return;
-      busy = true;
-      const btn = $("reanalyzeBtn");
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Analysing…';
+      setBusy(true, "Analysing…");
+      $("reanalyzeBtn").innerHTML = `<span class="spinner"></span> Analysing…`;
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 90000);
       try {
         const fd = new FormData();
         fd.append("high_confidence", "false");
         const data = await fetch(`/api/creatives/${selectedCreativeId}/analyze`, {
-          method: "POST",
-          body: fd,
-          credentials: "include",
-          signal: ctrl.signal,
+          method: "POST", body: fd, credentials: "include", signal: ctrl.signal,
         }).then(async (res) => {
           const body = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(detailMsg(body, res.statusText));
@@ -648,16 +1100,10 @@
         await refreshLibrary();
         await openCreative(selectedCreativeId, true);
       } catch (err) {
-        const msg = err?.name === "AbortError"
-          ? "Timed out. Try a smaller image."
-          : (err.message || "Analysis failed");
-        $("analyzeError").textContent = msg;
-        $("analyzeError").classList.remove("hidden");
+        toast(err?.name === "AbortError" ? "Timed out. Try a smaller image." : (err.message || "Analysis failed"));
       } finally {
         clearTimeout(timer);
-        busy = false;
-        btn.disabled = false;
-        btn.textContent = "Re-analyse";
+        setBusy(false);
       }
     }
 
@@ -669,7 +1115,6 @@
         $("authSubmit").textContent = authMode === "signin" ? "Sign in" : "Create account";
       });
     });
-
     $("authForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       $("authError").classList.add("hidden");
@@ -682,41 +1127,49 @@
         $("authError").classList.remove("hidden");
       }
     });
-
     $("signoutBtn").addEventListener("click", async () => {
       await api("/api/auth/signout", { method: "POST", body: "{}" });
-      result = null;
-      selectedCreativeId = null;
-      selectedProjectId = null;
+      result = null; selectedCreativeId = null; selectedProjectId = null;
       library = { projects: [], creatives: [] };
       await refreshMe();
     });
 
-    $("newProjectBtn").addEventListener("click", () => {
-      $("newProjForm").classList.add("on");
+    function openProjectModal() {
+      $("projectModal").classList.remove("hidden");
+      $("newProjName").value = $("quickProjectName").value;
       $("newProjName").focus();
+    }
+    $("quickCreateProject").addEventListener("click", () => {
+      const n = $("quickProjectName").value.trim();
+      if (n) createProject(n, null);
+      else openProjectModal();
     });
-    $("cancelProjectBtn").addEventListener("click", () => {
-      $("newProjForm").classList.remove("on");
-      $("projError").classList.add("hidden");
+    $("quickProjectName").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const n = $("quickProjectName").value.trim();
+        if (n) createProject(n, null);
+      }
     });
-    $("createProjectBtn").addEventListener("click", async () => {
+    $("cancelProjectBtn").addEventListener("click", () => $("projectModal").classList.add("hidden"));
+    $("createProjectBtn").addEventListener("click", () => {
+      createProject($("newProjName").value.trim(), $("newProjClient").value.trim() || null);
+    });
+    async function createProject(name, clientName) {
       $("projError").classList.add("hidden");
+      if (!name) { $("projError").textContent = "Name required"; $("projError").classList.remove("hidden"); return; }
       try {
-        const name = $("newProjName").value.trim();
-        if (!name) throw new Error("Name required");
         const proj = await api("/api/projects", {
           method: "POST",
-          body: JSON.stringify({
-            name,
-            clientName: $("newProjClient").value.trim() || null,
-          }),
+          body: JSON.stringify({ name, clientName }),
         });
+        $("quickProjectName").value = "";
         $("newProjName").value = "";
         $("newProjClient").value = "";
-        $("newProjForm").classList.remove("on");
+        $("projectModal").classList.add("hidden");
         await refreshLibrary();
         selectedProjectId = proj.id;
+        expanded[proj.id] = true;
         selectedCreativeId = null;
         renderRail();
         updateCrumb();
@@ -724,63 +1177,58 @@
       } catch (err) {
         $("projError").textContent = err.message;
         $("projError").classList.remove("hidden");
+        toast(err.message);
       }
-    });
+    }
 
     $("newFolderBtn").addEventListener("click", async () => {
-      if (!selectedProjectId) return;
+      if (!selectedProjectId) { toast("Select a project first."); return; }
       const name = prompt("Folder name");
       if (!name || !name.trim()) return;
       try {
         await api(`/api/projects/${selectedProjectId}/folders`, {
-          method: "POST",
-          body: JSON.stringify({ name: name.trim() }),
+          method: "POST", body: JSON.stringify({ name: name.trim() }),
         });
         await refreshLibrary();
-      } catch (err) {
-        $("railError").textContent = err.message;
-        $("railError").classList.remove("hidden");
-      }
+      } catch (err) { toast(err.message); }
     });
-
     $("deleteProjectBtn").addEventListener("click", async () => {
       if (!selectedProjectId) return;
       const p = projectById(selectedProjectId);
-      if (!p) return;
-      if (!confirm(`Delete project “${p.name}” and all creatives?`)) return;
+      if (!p || !confirm(`Delete project “${p.name}” and all creatives?`)) return;
       try {
         await api(`/api/projects/${selectedProjectId}`, { method: "DELETE" });
-        selectedProjectId = null;
-        selectedCreativeId = null;
-        result = null;
+        selectedProjectId = null; selectedCreativeId = null; result = null;
         await refreshLibrary();
         renderEmpty();
-      } catch (err) {
-        $("railError").textContent = err.message;
-        $("railError").classList.remove("hidden");
-      }
+      } catch (err) { toast(err.message); }
     });
-
     $("deleteCreativeBtn").addEventListener("click", async () => {
-      if (!selectedCreativeId) return;
-      if (!confirm("Delete this creative and its runs?")) return;
+      if (!selectedCreativeId || !confirm("Delete this creative and its runs?")) return;
       try {
         await api(`/api/creatives/${selectedCreativeId}`, { method: "DELETE" });
-        selectedCreativeId = null;
-        result = null;
+        selectedCreativeId = null; result = null;
         await refreshLibrary();
         renderEmpty();
-      } catch (err) {
-        $("analyzeError").textContent = err.message;
-        $("analyzeError").classList.remove("hidden");
-      }
+      } catch (err) { toast(err.message); }
     });
 
-    $("uploadBtn").addEventListener("click", () => uploadCreative({ analyse: true }));
-    $("uploadOnlyBtn").addEventListener("click", () => uploadCreative({ analyse: false }));
+    $("uploadBtn").addEventListener("click", (e) => { e.stopPropagation(); uploadCreative({ analyse: true }); });
+    $("uploadOnlyBtn").addEventListener("click", (e) => { e.stopPropagation(); uploadCreative({ analyse: false }); });
     $("reanalyzeBtn").addEventListener("click", reanalyze);
 
     const drop = $("dropZone");
+    drop.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      $("file").click();
+    });
+    drop.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); }
+    });
+    $("file").addEventListener("change", () => {
+      const f = $("file").files?.[0];
+      $("fileName").textContent = f ? f.name : "";
+    });
     ["dragenter", "dragover"].forEach((ev) => {
       drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); });
     });
@@ -793,6 +1241,7 @@
         const dt = new DataTransfer();
         dt.items.add(f);
         $("file").files = dt.files;
+        $("fileName").textContent = f.name;
       }
     });
 
