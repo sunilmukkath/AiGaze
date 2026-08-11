@@ -263,7 +263,7 @@
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span> Analysing…';
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 180000);
+      const timer = setTimeout(() => ctrl.abort(), 60000);
       try {
         const res = await fetch("/api/analyze", {
           method: "POST",

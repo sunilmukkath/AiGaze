@@ -55,8 +55,10 @@ except ImportError:
 
 _APP_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-SALIENCY_ENABLE_TTA = True
-SALIENCY_HIGH_CONFIDENCE_MODE = True
+# Fast defaults for Railway CPU — DeepGaze/MediaPipe/YOLO can hang on first load.
+SALIENCY_ENABLE_TTA = os.environ.get("AIGAZE_ENABLE_TTA", "").strip() == "1"
+USE_DEEPGAZE = os.environ.get("AIGAZE_USE_DEEPGAZE", "").strip() == "1"
+ENABLE_FACE_PRIOR = os.environ.get("AIGAZE_ENABLE_FACE_PRIOR", "").strip() == "1"
 
 
 # ── Brand assets ──
@@ -453,6 +455,8 @@ def _face_boost(img, sal, H, W, weight=0.22):
 
 def _detect_faces(img):
     """Best-effort face detection: MediaPipe first, Haar fallback."""
+    if not ENABLE_FACE_PRIOR:
+        return []
     H, W = img.shape[:2]
     faces = []
 
@@ -615,8 +619,8 @@ def compute_saliency(img, enable_tta=None):
         meta.setdefault("scene_type", scene_meta.get("scene_type", "editorial"))
         return sal, meta
 
-    # 2) Local DeepGaze path.
-    if DEEPGAZE_AVAILABLE:
+    # 2) Local DeepGaze path (opt-in — default off on Railway to avoid first-load hangs).
+    if USE_DEEPGAZE and DEEPGAZE_AVAILABLE:
         model, device, ok, load_err = _load_deepgaze_model()
         if ok and model is not None and device is not None:
             try:
@@ -666,6 +670,8 @@ def compute_saliency(img, enable_tta=None):
                 fallback_reason = f"DeepGaze inference failed: {exc}"
         else:
             fallback_reason = f"DeepGaze load failed: {load_err}" if load_err else "DeepGaze unavailable"
+    elif not USE_DEEPGAZE:
+        fallback_reason = "DeepGaze disabled (AIGAZE_USE_DEEPGAZE!=1)"
     else:
         fallback_reason = "DeepGaze dependencies unavailable"
 

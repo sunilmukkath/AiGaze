@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import secrets
-import threading
 from pathlib import Path
 from typing import Any
 
@@ -135,27 +134,18 @@ def _verify_billing(raw: bytes, signature: str | None) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
-def _warm_models() -> None:
-    """Load DeepGaze in the background so the first user analyse is faster."""
-    try:
-        import numpy as np
-        from engine.core import compute_saliency
-
-        tiny = np.zeros((64, 64, 3), dtype=np.uint8)
-        tiny[:] = (32, 64, 128)
-        compute_saliency(tiny, enable_tta=False)
-        logger.info("DeepGaze warm-up complete")
-    except Exception as exc:
-        logger.warning("DeepGaze warm-up skipped: %s", exc)
-
-
 @app.on_event("startup")
 def _startup() -> None:
     try:
         auth.ensure_shared_admin()
     except Exception:
         pass
-    threading.Thread(target=_warm_models, name="aigaze-warmup", daemon=True).start()
+    logger.info(
+        "AI Gaze ready (DeepGaze=%s YOLO=%s face_prior=%s)",
+        os.environ.get("AIGAZE_USE_DEEPGAZE", "0"),
+        os.environ.get("AIGAZE_ENABLE_YOLO", "0"),
+        os.environ.get("AIGAZE_ENABLE_FACE_PRIOR", "0"),
+    )
 
 
 @app.get("/health")
@@ -292,14 +282,26 @@ async def analyze(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    logger.info(
+        "analyse start user=%s bytes=%s shape=%s high_conf=%s",
+        user.get("email"),
+        len(raw),
+        getattr(img, "shape", None),
+        bool(high_confidence),
+    )
     try:
-        # CPU DeepGaze is blocking — keep the event loop free.
+        # CPU inference is blocking — keep the event loop free.
         result = await asyncio.to_thread(
             run_analysis, img, high_confidence=bool(high_confidence)
         )
     except Exception as exc:
         logger.exception("analyse failed")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
+    logger.info(
+        "analyse done engine=%s confidence=%s",
+        (result.get("meta") or {}).get("engine"),
+        (result.get("meta") or {}).get("confidence"),
+    )
 
     if not user.get("admin"):
         auth.consume_analysis(user["email"])
