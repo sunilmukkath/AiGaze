@@ -20,6 +20,7 @@ from pydantic import BaseModel, EmailStr, Field
 from starlette.middleware.sessions import SessionMiddleware
 
 import auth_users as auth
+import project_library as library
 from engine.analyze import build_pdf_from_bundle, decode_upload, run_analysis
 
 logger = logging.getLogger("aigaze")
@@ -195,13 +196,299 @@ def me(request: Request) -> dict[str, Any]:
     if not email:
         return {"authenticated": False}
     user = auth.get_user_by_email(email)
+    snap = library.library_snapshot(email)
     return {
         "authenticated": True,
         "user": _public_user(user, email),
         "checkout_url": CHECKOUT_URL,
         "sso": SSO_ON,
         "accounts_url": ACCOUNTS_URL,
+        "library": snap,
     }
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    clientName: str | None = None
+
+
+class ProjectPatch(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    clientName: str | None = None
+
+
+class FolderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    parentId: str | None = None
+
+
+@app.get("/api/library")
+def api_library(request: Request) -> dict[str, Any]:
+    user = _require_user(request)
+    return library.library_snapshot(user["email"])
+
+
+@app.get("/api/projects")
+def api_list_projects(request: Request) -> list[dict[str, Any]]:
+    user = _require_user(request)
+    library.ensure_default_project(user["email"])
+    return library.list_projects(user["email"])
+
+
+@app.post("/api/projects")
+def api_create_project(body: ProjectCreate, request: Request) -> dict[str, Any]:
+    user = _require_user(request)
+    return library.create_project(user["email"], body.name, body.clientName)
+
+
+@app.get("/api/projects/{project_id}")
+def api_get_project(project_id: str, request: Request) -> dict[str, Any]:
+    user = _require_user(request)
+    proj = library.get_project(project_id, user["email"])
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    creatives = library.list_creatives(project_id, user["email"])
+    return {"project": proj, "creatives": creatives}
+
+
+@app.patch("/api/projects/{project_id}")
+def api_patch_project(
+    project_id: str, body: ProjectPatch, request: Request
+) -> dict[str, Any]:
+    user = _require_user(request)
+    proj = library.update_project(
+        project_id, user["email"], name=body.name, client_name=body.clientName
+    )
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return proj
+
+
+@app.delete("/api/projects/{project_id}")
+def api_delete_project(project_id: str, request: Request) -> dict[str, bool]:
+    user = _require_user(request)
+    if not library.delete_project(project_id, user["email"]):
+        raise HTTPException(status_code=404, detail="Project not found")
+    library.ensure_default_project(user["email"])
+    return {"ok": True}
+
+
+@app.post("/api/projects/{project_id}/folders")
+def api_create_folder(
+    project_id: str, body: FolderCreate, request: Request
+) -> dict[str, Any]:
+    user = _require_user(request)
+    folder = library.create_folder(
+        project_id, user["email"], body.name, body.parentId
+    )
+    if not folder:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return folder
+
+
+@app.delete("/api/folders/{folder_id}")
+def api_delete_folder(folder_id: str, request: Request) -> dict[str, bool]:
+    user = _require_user(request)
+    if not library.delete_folder(folder_id, user["email"]):
+        raise HTTPException(status_code=404, detail="Folder not found")
+    return {"ok": True}
+
+
+@app.post("/api/projects/{project_id}/creatives")
+async def api_upload_creative(
+    project_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    folderId: str | None = Form(None),
+    name: str | None = Form(None),
+) -> dict[str, Any]:
+    user = _require_user(request)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty upload")
+    try:
+        img = decode_upload(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    h, w = img.shape[:2]
+    creative = library.add_creative(
+        project_id,
+        user["email"],
+        raw=raw,
+        file_name=file.filename or "creative.png",
+        mime_type=file.content_type or "image/png",
+        folder_id=folderId,
+        name=name,
+        width=w,
+        height=h,
+    )
+    if not creative:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return creative
+
+
+@app.get("/api/creatives/{creative_id}")
+def api_get_creative(creative_id: str, request: Request) -> dict[str, Any]:
+    user = _require_user(request)
+    creative = library.get_creative(creative_id, user["email"])
+    if not creative:
+        raise HTTPException(status_code=404, detail="Creative not found")
+    runs = library.list_runs(creative_id, user["email"])
+    return {"creative": creative, "runs": runs}
+
+
+@app.get("/api/creatives/{creative_id}/image")
+def api_creative_image(creative_id: str, request: Request) -> Response:
+    user = _require_user(request)
+    packed = library.read_creative_bytes(creative_id, user["email"])
+    if not packed:
+        raise HTTPException(status_code=404, detail="Creative not found")
+    raw, creative = packed
+    return Response(content=raw, media_type=creative.get("mimeType") or "image/png")
+
+
+@app.delete("/api/creatives/{creative_id}")
+def api_delete_creative(creative_id: str, request: Request) -> dict[str, bool]:
+    user = _require_user(request)
+    if not library.delete_creative(creative_id, user["email"]):
+        raise HTTPException(status_code=404, detail="Creative not found")
+    return {"ok": True}
+
+
+@app.post("/api/creatives/{creative_id}/analyze")
+async def api_analyze_creative(
+    creative_id: str,
+    request: Request,
+    high_confidence: bool = Form(False),
+) -> JSONResponse:
+    user = _require_user(request)
+    if not user.get("admin"):
+        db_user = auth.get_user_by_email(user["email"])
+        ok, reason = auth.can_run_analysis(db_user)
+        if not ok:
+            raise HTTPException(status_code=402, detail=reason or "Upgrade required")
+
+    packed = library.read_creative_bytes(creative_id, user["email"])
+    if not packed:
+        raise HTTPException(status_code=404, detail="Creative not found")
+    raw, creative = packed
+    try:
+        img = decode_upload(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    logger.info("analyse creative=%s user=%s", creative_id, user.get("email"))
+    try:
+        result = await asyncio.to_thread(
+            run_analysis, img, high_confidence=bool(high_confidence)
+        )
+    except Exception as exc:
+        logger.exception("analyse creative failed")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
+
+    if not user.get("admin"):
+        auth.consume_analysis(user["email"])
+
+    meta = result.get("meta") or {}
+    run = library.save_analysis_run(
+        project_id=creative["projectId"],
+        creative_id=creative_id,
+        owner_email=user["email"],
+        engine=str(meta.get("engine") or "Unknown"),
+        confidence=(
+            float(meta["confidence"]) if meta.get("confidence") is not None else None
+        ),
+        meta=meta,
+        overlays_b64=result.get("images") or {},
+    )
+
+    token = secrets.token_urlsafe(16)
+    _PDF_CACHE[token] = result.pop("_pdf_bundle")
+    while len(_PDF_CACHE) > 32:
+        _PDF_CACHE.pop(next(iter(_PDF_CACHE)))
+
+    result["pdf_token"] = token
+    result["run"] = run
+    result["creative"] = library.get_creative(creative_id, user["email"])
+    return JSONResponse(result)
+
+
+@app.get("/api/creatives/{creative_id}/runs")
+def api_list_runs(creative_id: str, request: Request) -> list[dict[str, Any]]:
+    user = _require_user(request)
+    return library.list_runs(creative_id, user["email"])
+
+
+@app.get("/api/runs/{run_id}")
+def api_get_run(run_id: str, request: Request) -> dict[str, Any]:
+    user = _require_user(request)
+    run = library.get_run(run_id, user["email"])
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return run
+
+
+@app.get("/api/runs/{run_id}/overlays/{kind}")
+def api_run_overlay(run_id: str, kind: str, request: Request) -> Response:
+    user = _require_user(request)
+    raw = library.read_overlay(run_id, user["email"], kind)
+    if not raw:
+        raise HTTPException(status_code=404, detail="Overlay not found")
+    return Response(content=raw, media_type="image/png")
+
+
+@app.get("/api/runs/{run_id}/report.pdf")
+def api_run_pdf(run_id: str, request: Request) -> Response:
+    """Rebuild PDF from stored overlays when possible."""
+    import cv2
+    import numpy as np
+
+    user = _require_user(request)
+    run = library.get_run(run_id, user["email"])
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    def _load(kind: str):
+        raw = library.read_overlay(run_id, user["email"], kind)
+        if not raw:
+            return None
+        arr = np.frombuffer(raw, dtype=np.uint8)
+        bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if bgr is None:
+            return None
+        return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+
+    original = _load("original")
+    heatmap = _load("heatmap")
+    hotspot = _load("hotspot")
+    gaze = _load("gaze")
+    if original is None or heatmap is None or hotspot is None or gaze is None:
+        raise HTTPException(
+            status_code=404, detail="Run overlays incomplete — re-analyse"
+        )
+    meta = run.get("meta") or {}
+    gaze_points = [
+        (int(p["x"]), int(p["y"]))
+        for p in (meta.get("gaze") or [])
+        if isinstance(p, dict) and "x" in p and "y" in p
+    ]
+    pdf_bytes = build_pdf_from_bundle(
+        {
+            "original": original,
+            "heatmap": heatmap,
+            "hotspot": hotspot,
+            "gaze": gaze,
+            "gaze_points": gaze_points,
+            "report_meta": meta,
+        }
+    )
+    if not pdf_bytes:
+        raise HTTPException(status_code=500, detail="PDF generation unavailable")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="AI_Gaze_Report.pdf"'},
+    )
 
 
 @app.post("/api/auth/signin")
@@ -218,6 +505,7 @@ def signin(body: Credentials, request: Request) -> dict[str, Any]:
     request.session["admin"] = is_admin
     public = _public_user(user)
     public["admin"] = is_admin
+    library.ensure_default_project(user["email"])
     return {"ok": True, "user": public}
 
 
@@ -230,6 +518,7 @@ def register(body: RegisterBody, request: Request) -> dict[str, Any]:
     request.session["email"] = user["email"]
     request.session["user_id"] = user["id"]
     request.session["admin"] = False
+    library.ensure_default_project(user["email"])
     return {"ok": True, "user": _public_user(user)}
 
 
@@ -266,7 +555,10 @@ async def analyze(
     request: Request,
     file: UploadFile = File(...),
     high_confidence: bool = Form(False),
+    projectId: str | None = Form(None),
+    folderId: str | None = Form(None),
 ) -> JSONResponse:
+    """Legacy one-shot analyse — also saves into the project library."""
     user = _require_user(request)
     if not user.get("admin"):
         db_user = auth.get_user_by_email(user["email"])
@@ -290,7 +582,6 @@ async def analyze(
         bool(high_confidence),
     )
     try:
-        # CPU inference is blocking — keep the event loop free.
         result = await asyncio.to_thread(
             run_analysis, img, high_confidence=bool(high_confidence)
         )
@@ -306,13 +597,48 @@ async def analyze(
     if not user.get("admin"):
         auth.consume_analysis(user["email"])
 
+    # Persist into library (default project if none specified).
+    project = None
+    if projectId:
+        project = library.get_project(projectId, user["email"])
+    if not project:
+        project = library.ensure_default_project(user["email"])
+    h, w = img.shape[:2]
+    creative = library.add_creative(
+        project["id"],
+        user["email"],
+        raw=raw,
+        file_name=file.filename or "creative.png",
+        mime_type=file.content_type or "image/png",
+        folder_id=folderId,
+        width=w,
+        height=h,
+    )
+    meta = result.get("meta") or {}
+    run = None
+    if creative:
+        run = library.save_analysis_run(
+            project_id=project["id"],
+            creative_id=creative["id"],
+            owner_email=user["email"],
+            engine=str(meta.get("engine") or "Unknown"),
+            confidence=(
+                float(meta["confidence"])
+                if meta.get("confidence") is not None
+                else None
+            ),
+            meta=meta,
+            overlays_b64=result.get("images") or {},
+        )
+
     token = secrets.token_urlsafe(16)
     _PDF_CACHE[token] = result.pop("_pdf_bundle")
-    # Cap cache size
     while len(_PDF_CACHE) > 32:
         _PDF_CACHE.pop(next(iter(_PDF_CACHE)))
 
     result["pdf_token"] = token
+    result["creative"] = creative
+    result["run"] = run
     return JSONResponse(result)
 
 

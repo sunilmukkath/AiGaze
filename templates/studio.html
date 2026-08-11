@@ -17,6 +17,7 @@
       --text: #f1f5f9;
       --muted: #94a3b8;
       --line: rgba(255,255,255,0.12);
+      --rail: 280px;
     }
     * { box-sizing: border-box; }
     body {
@@ -31,13 +32,24 @@
     }
     header {
       display: flex; align-items: center; justify-content: space-between;
-      gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line);
+      gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line);
       backdrop-filter: blur(10px);
     }
     .brand { display: flex; align-items: center; gap: 12px; }
-    .brand img { height: 40px; width: auto; }
+    .brand img { height: 36px; width: auto; }
     .brand span { font-family: Outfit, sans-serif; font-weight: 800; letter-spacing: -0.02em; }
-    main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 64px; }
+    .crumb { color: var(--muted); font-size: 0.85rem; }
+    .crumb strong { color: var(--text); font-weight: 600; }
+    main.auth-main { max-width: 520px; margin: 0 auto; padding: 36px 20px 64px; }
+    .shell { display: none; height: calc(100vh - 65px); }
+    .shell.on { display: grid; grid-template-columns: var(--rail) 1fr; }
+    .rail {
+      border-right: 1px solid var(--line);
+      background: rgba(7,22,50,0.55);
+      overflow: auto;
+      padding: 14px 12px 28px;
+    }
+    .workspace { overflow: auto; padding: 18px 22px 48px; }
     .card {
       background: rgba(16,52,102,0.55);
       border: 1px solid var(--line);
@@ -45,44 +57,91 @@
       padding: 22px;
       box-shadow: 0 24px 80px rgba(0,0,0,0.28);
     }
-    h1 { font-family: Outfit, sans-serif; font-size: 1.6rem; margin: 0 0 8px; }
-    p.lead { color: var(--muted); margin: 0 0 20px; line-height: 1.5; }
+    h1 { font-family: Outfit, sans-serif; font-size: 1.45rem; margin: 0 0 8px; }
+    h2 { font-family: Outfit, sans-serif; font-size: 0.95rem; margin: 0; letter-spacing: 0.02em; }
+    p.lead { color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
     label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
-    input[type=email], input[type=password], input[type=file] {
-      width: 100%; padding: 12px 14px; border-radius: 10px;
+    input[type=email], input[type=password], input[type=text], input[type=file] {
+      width: 100%; padding: 11px 13px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.16);
       background: rgba(255,255,255,0.95); color: #0f172a;
-      font: inherit; margin-bottom: 14px;
+      font: inherit; margin-bottom: 12px;
     }
     input[type=file] { background: rgba(255,255,255,0.06); color: var(--text); }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .row > * { flex: 1; min-width: 140px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .row > * { flex: 1; min-width: 120px; }
     button, .btn {
       appearance: none; border: 0; cursor: pointer;
-      border-radius: 999px; padding: 12px 18px; font: inherit; font-weight: 700;
+      border-radius: 999px; padding: 10px 16px; font: inherit; font-weight: 700;
       text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
       gap: 8px;
     }
     .btn-primary { background: linear-gradient(90deg, #f5c842, var(--amber)); color: #0a1f4a; }
     .btn-secondary { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); }
     .btn-ghost { background: transparent; color: var(--muted); }
+    .btn-sm { padding: 6px 10px; font-size: 0.78rem; border-radius: 8px; }
     .error { color: #fb7185; font-size: 0.9rem; margin: 8px 0 0; }
-    .ok { color: var(--teal); font-size: 0.9rem; }
-    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 14px; }
+    .ok { color: var(--teal); font-size: 0.85rem; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
     .tab {
       border: 1px solid var(--line); background: rgba(255,255,255,0.04);
-      color: var(--muted); border-radius: 999px; padding: 8px 14px; cursor: pointer; font-weight: 600;
+      color: var(--muted); border-radius: 999px; padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
     }
     .tab.active { color: #0a1f4a; background: linear-gradient(90deg,#f5c842,var(--amber)); border-color: transparent; }
-    .panel img { width: 100%; border-radius: 12px; border: 1px solid var(--line); background: #000; }
-    .meta { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; margin: 16px 0; }
-    .chip { background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
-    .chip b { display: block; font-size: 1.15rem; font-family: Outfit, sans-serif; }
-    .chip span { color: var(--muted); font-size: 0.78rem; }
+    .panel img { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 12px; border: 1px solid var(--line); background: #000; }
+    .meta { display: grid; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); gap: 10px; margin: 12px 0; }
+    .chip { background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+    .chip b { display: block; font-size: 1.05rem; font-family: Outfit, sans-serif; }
+    .chip span { color: var(--muted); font-size: 0.75rem; }
     .hidden { display: none !important; }
-    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
-    .spinner { width: 18px; height: 18px; border: 2px solid rgba(10,31,74,0.2); border-top-color: #0a1f4a; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(10,31,74,0.2); border-top-color: #0a1f4a; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .proj {
+      border: 1px solid transparent; border-radius: 10px; padding: 8px 10px; margin-bottom: 4px;
+      cursor: pointer; color: var(--muted);
+    }
+    .proj:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .proj.active { background: rgba(232,168,32,0.14); border-color: rgba(232,168,32,0.35); color: var(--text); }
+    .proj .name { font-weight: 600; font-size: 0.9rem; }
+    .proj .sub { font-size: 0.72rem; opacity: 0.8; margin-top: 2px; }
+    .folder-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 12px 4px 6px; }
+    .creative {
+      display: flex; gap: 8px; align-items: center;
+      border-radius: 10px; padding: 7px 8px; cursor: pointer; color: var(--muted);
+      border: 1px solid transparent;
+    }
+    .creative:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .creative.active { background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.3); color: var(--text); }
+    .creative .thumb {
+      width: 36px; height: 36px; border-radius: 6px; object-fit: cover; background: #000; flex-shrink: 0;
+      border: 1px solid var(--line);
+    }
+    .creative .meta-line { min-width: 0; flex: 1; }
+    .creative .meta-line .t { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .creative .meta-line .s { font-size: 0.7rem; opacity: 0.75; }
+    .empty { color: var(--muted); font-size: 0.85rem; padding: 12px 6px; line-height: 1.45; }
+    .runs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+    .run-chip {
+      border: 1px solid var(--line); background: rgba(255,255,255,0.04);
+      border-radius: 10px; padding: 8px 10px; cursor: pointer; font-size: 0.78rem; color: var(--muted);
+    }
+    .run-chip.active { border-color: var(--teal); color: var(--text); }
+    .drop {
+      border: 1px dashed rgba(255,255,255,0.22); border-radius: 14px; padding: 18px;
+      text-align: center; color: var(--muted); margin-bottom: 14px;
+    }
+    .drop.drag { border-color: var(--teal); background: rgba(45,212,191,0.08); color: var(--text); }
+    .new-proj {
+      display: none; margin-top: 8px; padding: 10px; border-radius: 10px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+    }
+    .new-proj.on { display: block; }
+    @media (max-width: 860px) {
+      .shell.on { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .rail { border-right: 0; border-bottom: 1px solid var(--line); max-height: 40vh; }
+    }
   </style>
 </head>
 <body>
@@ -91,11 +150,14 @@
       <img src="/static/aigaze-logo.png" alt="AI Gaze" onerror="this.style.display='none'" />
       <span>AI Gaze™ Studio</span>
     </div>
-    <div class="row" style="flex:0; min-width:auto;">
-      <button class="btn-ghost" id="signoutBtn" type="button">Sign out</button>
+    <div class="row" style="flex:0; min-width:auto; gap:10px;">
+      <span class="crumb hidden" id="crumb"></span>
+      <a class="btn btn-secondary btn-sm hidden" id="checkoutLink" href="{{CHECKOUT_URL}}" target="_blank" rel="noreferrer">Upgrade</a>
+      <button class="btn-ghost btn-sm hidden" id="signoutBtn" type="button">Sign out</button>
     </div>
   </header>
-  <main>
+
+  <main class="auth-main" id="authMain">
     <div id="authCard" class="card">
       <h1>Sign in to AI Gaze Studio</h1>
       <p class="lead">Same Elastic Tree account as other studios — continue with Google on elastictree.com, or use local email.</p>
@@ -119,39 +181,84 @@
         <p class="error hidden" id="authError"></p>
       </form>
     </div>
+  </main>
 
-    <div id="studioCard" class="card hidden">
-      <div class="toolbar">
-        <div>
-          <h1>Studio</h1>
-          <p class="lead" style="margin:0;">Upload a creative · review attention · export PDF</p>
-          <p class="ok" id="userLine"></p>
-        </div>
-        <a class="btn btn-secondary" id="checkoutLink" href="{{CHECKOUT_URL}}" target="_blank" rel="noreferrer">Upgrade</a>
+  <div class="shell" id="shell">
+    <aside class="rail" id="rail">
+      <div class="rail-head">
+        <h2>Library</h2>
+        <button class="btn-secondary btn-sm" type="button" id="newProjectBtn">+ Project</button>
       </div>
-      <form id="uploadForm">
-        <label>Upload creative (JPG · PNG · WebP · BMP)</label>
-        <input type="file" id="file" accept="image/*" required />
-        <button class="btn-primary" type="submit" id="analyzeBtn">Analyse</button>
+      <div class="new-proj" id="newProjForm">
+        <label>Project name</label>
+        <input type="text" id="newProjName" placeholder="Brand X Summer Pack" maxlength="120" />
+        <label>Client (optional)</label>
+        <input type="text" id="newProjClient" placeholder="Client name" maxlength="120" />
+        <div class="row">
+          <button class="btn-primary btn-sm" type="button" id="createProjectBtn">Create</button>
+          <button class="btn-ghost btn-sm" type="button" id="cancelProjectBtn">Cancel</button>
+        </div>
+        <p class="error hidden" id="projError"></p>
+      </div>
+      <div id="projectList"></div>
+      <div class="folder-label">Creatives</div>
+      <div id="creativeList"></div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn-secondary btn-sm" type="button" id="newFolderBtn">+ Folder</button>
+        <button class="btn-ghost btn-sm" type="button" id="deleteProjectBtn">Delete project</button>
+      </div>
+      <p class="error hidden" id="railError"></p>
+    </aside>
+
+    <section class="workspace" id="workspace">
+      <div class="drop" id="dropZone">
+        <p style="margin:0 0 10px;">Drop a creative here, or choose a file</p>
+        <input type="file" id="file" accept="image/*" />
+        <div class="row" style="justify-content:center; margin-top:10px;">
+          <button class="btn-primary" type="button" id="uploadBtn">Upload &amp; analyse</button>
+          <button class="btn-secondary" type="button" id="uploadOnlyBtn">Upload only</button>
+        </div>
         <p class="error hidden" id="analyzeError"></p>
-      </form>
-      <div id="results" class="hidden">
+        <p class="ok" id="userLine" style="margin-top:10px;"></p>
+      </div>
+
+      <div id="emptyWorkspace" class="card">
+        <h1>Select or upload a creative</h1>
+        <p class="lead">Projects keep creatives and analysis runs together — same pattern as DataWiz / TScribe.</p>
+      </div>
+
+      <div id="results" class="card hidden">
+        <div class="toolbar row" style="justify-content:space-between; margin-bottom:8px;">
+          <div>
+            <h1 id="creativeTitle">Creative</h1>
+            <p class="lead" style="margin:0;" id="creativeSub"></p>
+          </div>
+          <div class="row" style="flex:0;">
+            <button class="btn-secondary" type="button" id="reanalyzeBtn">Re-analyse</button>
+            <a class="btn btn-primary" id="pdfBtn" href="#">Download PDF</a>
+            <button class="btn-ghost btn-sm" type="button" id="deleteCreativeBtn">Delete</button>
+          </div>
+        </div>
         <div class="meta" id="meta"></div>
+        <div class="folder-label">Runs</div>
+        <div class="runs" id="runs"></div>
         <div class="tabs" id="tabs"></div>
         <div class="panel"><img id="preview" alt="Analysis preview" /></div>
-        <div style="margin-top:16px;">
-          <a class="btn btn-primary" id="pdfBtn" href="#">Download PDF report</a>
-        </div>
       </div>
-    </div>
-  </main>
+    </section>
+  </div>
+
   <script>
     const SSO_ON = "{{SSO_ON}}" === "1";
-    const ACCOUNTS = "{{ACCOUNTS_URL}}";
-    const PUBLIC_URL = "{{PUBLIC_URL}}";
     let authMode = "signin";
-    let result = null;
+    let library = { projects: [], creatives: [] };
+    let selectedProjectId = null;
+    let selectedFolderId = null;
+    let selectedCreativeId = null;
+    let selectedRunId = null;
+    let result = null; // live analyse payload (base64 images)
     let activeTab = "heatmap";
+    let busy = false;
 
     const $ = (id) => document.getElementById(id);
     const tabs = [
@@ -163,6 +270,13 @@
       ["original", "Original"],
     ];
 
+    function detailMsg(data, fallback) {
+      if (!data) return fallback;
+      if (typeof data.detail === "string") return data.detail;
+      if (Array.isArray(data.detail) && data.detail[0]?.msg) return data.detail[0].msg;
+      return data.error || fallback;
+    }
+
     async function api(path, opts = {}) {
       const res = await fetch(path, {
         credentials: "include",
@@ -173,18 +287,39 @@
         },
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || data.error || res.statusText);
+      if (!res.ok) throw new Error(detailMsg(data, res.statusText));
       return data;
     }
 
+    function projectById(id) {
+      return (library.projects || []).find((p) => p.id === id) || null;
+    }
+
+    function creativesForProject(pid) {
+      return (library.creatives || []).filter((c) => c.projectId === pid);
+    }
+
     function showAuth(authed, me) {
-      $("authCard").classList.toggle("hidden", authed);
-      $("studioCard").classList.toggle("hidden", !authed);
+      $("authMain").classList.toggle("hidden", authed);
+      $("shell").classList.toggle("on", authed);
       $("signoutBtn").classList.toggle("hidden", !authed);
+      $("checkoutLink").classList.toggle("hidden", !authed);
+      $("crumb").classList.toggle("hidden", !authed);
       if (authed && me?.user) {
         const u = me.user;
         $("userLine").textContent = u.email + (u.plan ? ` · ${u.plan}` : "");
+        if (me.checkout_url) $("checkoutLink").href = me.checkout_url;
       }
+    }
+
+    async function refreshLibrary() {
+      const snap = await api("/api/library");
+      library = snap;
+      if (!selectedProjectId || !projectById(selectedProjectId)) {
+        selectedProjectId = library.projects?.[0]?.id || null;
+      }
+      renderRail();
+      updateCrumb();
     }
 
     async function refreshMe() {
@@ -195,9 +330,338 @@
         const sso = await api("/api/auth/sso-url");
         $("ssoBtn").href = sso.url;
       }
+      if (me.authenticated) {
+        library = me.library || { projects: [], creatives: [] };
+        if (!selectedProjectId || !projectById(selectedProjectId)) {
+          selectedProjectId = library.projects?.[0]?.id || null;
+        }
+        renderRail();
+        updateCrumb();
+        if (selectedCreativeId) await openCreative(selectedCreativeId, false);
+        else renderEmpty();
+      }
       return me;
     }
 
+    function updateCrumb() {
+      const p = projectById(selectedProjectId);
+      $("crumb").innerHTML = p
+        ? `Project · <strong>${escapeHtml(p.name)}</strong>`
+        : "";
+    }
+
+    function escapeHtml(s) {
+      return String(s || "").replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    function renderRail() {
+      const list = $("projectList");
+      list.innerHTML = (library.projects || []).map((p) => {
+        const n = creativesForProject(p.id).length;
+        return `<div class="proj ${p.id === selectedProjectId ? "active" : ""}" data-pid="${p.id}">
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="sub">${n} creative${n === 1 ? "" : "s"}${p.clientName ? " · " + escapeHtml(p.clientName) : ""}</div>
+        </div>`;
+      }).join("") || `<p class="empty">Create a project to start.</p>`;
+
+      list.querySelectorAll("[data-pid]").forEach((el) => {
+        el.addEventListener("click", () => {
+          selectedProjectId = el.dataset.pid;
+          selectedFolderId = null;
+          selectedCreativeId = null;
+          result = null;
+          renderRail();
+          updateCrumb();
+          renderEmpty();
+        });
+      });
+
+      const p = projectById(selectedProjectId);
+      const creatives = creativesForProject(selectedProjectId);
+      const folders = p?.folders || [];
+      let html = "";
+      if (folders.length) {
+        for (const f of folders) {
+          const inFolder = creatives.filter((c) => c.folderId === f.id);
+          html += `<div class="folder-label">${escapeHtml(f.name)}</div>`;
+          html += inFolder.map(creativeRow).join("") || `<p class="empty">Empty folder</p>`;
+        }
+        html += `<div class="folder-label">Unfiled</div>`;
+        html += creatives.filter((c) => !c.folderId).map(creativeRow).join("")
+          || `<p class="empty">No unfiled creatives</p>`;
+      } else {
+        html = creatives.map(creativeRow).join("")
+          || `<p class="empty">Upload a creative into this project.</p>`;
+      }
+      $("creativeList").innerHTML = html;
+      $("creativeList").querySelectorAll("[data-cid]").forEach((el) => {
+        el.addEventListener("click", () => openCreative(el.dataset.cid, true));
+      });
+    }
+
+    function creativeRow(c) {
+      return `<div class="creative ${c.id === selectedCreativeId ? "active" : ""}" data-cid="${c.id}">
+        <img class="thumb" src="/api/creatives/${c.id}/image" alt="" />
+        <div class="meta-line">
+          <div class="t">${escapeHtml(c.name)}</div>
+          <div class="s">${c.width}×${c.height}${c.latestRunId ? " · analysed" : ""}</div>
+        </div>
+      </div>`;
+    }
+
+    function renderEmpty() {
+      $("emptyWorkspace").classList.remove("hidden");
+      $("results").classList.add("hidden");
+    }
+
+    async function openCreative(cid, fetchRuns) {
+      selectedCreativeId = cid;
+      renderRail();
+      $("emptyWorkspace").classList.add("hidden");
+      $("results").classList.remove("hidden");
+      const c = (library.creatives || []).find((x) => x.id === cid);
+      $("creativeTitle").textContent = c?.name || "Creative";
+      $("creativeSub").textContent = c ? `${c.width}×${c.height} · ${c.fileName}` : "";
+
+      let runs = [];
+      if (fetchRuns !== false) {
+        try {
+          const data = await api(`/api/creatives/${cid}`);
+          runs = data.runs || [];
+        } catch (err) {
+          $("analyzeError").textContent = err.message;
+          $("analyzeError").classList.remove("hidden");
+        }
+      }
+
+      if (result && result.creative?.id === cid && result.images) {
+        selectedRunId = result.run?.id || selectedRunId;
+        renderResultsLive(runs);
+        return;
+      }
+
+      result = null;
+      if (runs.length) {
+        selectedRunId = runs[0].id;
+        await showRun(runs[0], runs);
+      } else {
+        selectedRunId = null;
+        $("meta").innerHTML = "";
+        $("tabs").innerHTML = "";
+        $("runs").innerHTML = "";
+        $("preview").src = `/api/creatives/${cid}/image`;
+        $("pdfBtn").removeAttribute("href");
+        $("pdfBtn").classList.add("hidden");
+      }
+    }
+
+    function renderRunChips(runs) {
+      $("runs").innerHTML = (runs || []).map((r) => {
+        const conf = r.confidence != null ? ` · ${Math.round(r.confidence)}` : "";
+        const when = (r.createdAt || "").slice(0, 16).replace("T", " ");
+        return `<button type="button" class="run-chip ${r.id === selectedRunId ? "active" : ""}" data-rid="${r.id}">
+          ${escapeHtml(r.engine || "Run")}${conf}<br/><span style="opacity:0.7">${escapeHtml(when)}</span>
+        </button>`;
+      }).join("") || `<span class="empty">No runs yet — analyse to create one.</span>`;
+      $("runs").querySelectorAll("[data-rid]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const run = runs.find((r) => r.id === btn.dataset.rid);
+          if (run) {
+            result = null;
+            await showRun(run, runs);
+          }
+        });
+      });
+    }
+
+    function renderResultsLive(runs) {
+      const m = result.meta || {};
+      $("meta").innerHTML = [
+        ["Engine", m.engine || "—"],
+        ["Confidence", m.confidence != null ? `${m.confidence}` : "—"],
+        ["Clarity", m.clarity?.score != null ? `${Math.round(m.clarity.score)}` : (m.clarity ?? "—")],
+        ["Scene", m.scene_type || "—"],
+      ].map(([k, v]) => `<div class="chip"><b>${escapeHtml(String(v))}</b><span>${k}</span></div>`).join("");
+
+      renderRunChips(runs);
+      $("tabs").innerHTML = tabs.map(([id, label]) =>
+        `<button type="button" class="tab ${id === activeTab ? "active" : ""}" data-tab="${id}">${label}</button>`
+      ).join("");
+      $("tabs").querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          activeTab = btn.dataset.tab;
+          const b64 = result.images?.[activeTab];
+          $("preview").src = b64 ? `data:image/png;base64,${b64}` : "";
+          $("tabs").querySelectorAll("[data-tab]").forEach((b) =>
+            b.classList.toggle("active", b.dataset.tab === activeTab)
+          );
+        });
+      });
+      const b64 = result.images?.[activeTab];
+      $("preview").src = b64 ? `data:image/png;base64,${b64}` : "";
+      if (result.pdf_token) {
+        $("pdfBtn").href = `/api/report.pdf?token=${encodeURIComponent(result.pdf_token)}`;
+        $("pdfBtn").classList.remove("hidden");
+      } else if (selectedRunId) {
+        $("pdfBtn").href = `/api/runs/${selectedRunId}/report.pdf`;
+        $("pdfBtn").classList.remove("hidden");
+      }
+      $("results").classList.remove("hidden");
+      $("emptyWorkspace").classList.add("hidden");
+    }
+
+    async function showRun(run, runs) {
+      selectedRunId = run.id;
+      const m = run.meta || {};
+      $("meta").innerHTML = [
+        ["Engine", run.engine || m.engine || "—"],
+        ["Confidence", run.confidence != null ? `${run.confidence}` : "—"],
+        ["Clarity", m.clarity?.score != null ? `${Math.round(m.clarity.score)}` : "—"],
+        ["Scene", m.scene_type || "—"],
+      ].map(([k, v]) => `<div class="chip"><b>${escapeHtml(String(v))}</b><span>${k}</span></div>`).join("");
+
+      renderRunChips(runs || [run]);
+      $("tabs").innerHTML = tabs.map(([id, label]) =>
+        `<button type="button" class="tab ${id === activeTab ? "active" : ""}" data-tab="${id}">${label}</button>`
+      ).join("");
+      const setPreview = (kind) => {
+        $("preview").src = `/api/runs/${run.id}/overlays/${kind}?t=${Date.now()}`;
+      };
+      $("tabs").querySelectorAll("[data-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          activeTab = btn.dataset.tab;
+          setPreview(activeTab);
+          $("tabs").querySelectorAll("[data-tab]").forEach((b) =>
+            b.classList.toggle("active", b.dataset.tab === activeTab)
+          );
+        });
+      });
+      setPreview(activeTab);
+      $("pdfBtn").href = `/api/runs/${run.id}/report.pdf`;
+      $("pdfBtn").classList.remove("hidden");
+      $("results").classList.remove("hidden");
+      $("emptyWorkspace").classList.add("hidden");
+    }
+
+    async function uploadCreative({ analyse }) {
+      if (busy) return;
+      const file = $("file").files?.[0];
+      if (!file) {
+        $("analyzeError").textContent = "Choose an image first.";
+        $("analyzeError").classList.remove("hidden");
+        return;
+      }
+      if (!selectedProjectId) {
+        $("analyzeError").textContent = "Create or select a project first.";
+        $("analyzeError").classList.remove("hidden");
+        return;
+      }
+      $("analyzeError").classList.add("hidden");
+      busy = true;
+      const btn = analyse ? $("uploadBtn") : $("uploadOnlyBtn");
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> ${analyse ? "Analysing…" : "Uploading…"}`;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90000);
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        if (selectedFolderId) fd.append("folderId", selectedFolderId);
+        const creative = await fetch(`/api/projects/${selectedProjectId}/creatives`, {
+          method: "POST",
+          body: fd,
+          credentials: "include",
+          signal: ctrl.signal,
+        }).then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(detailMsg(data, res.statusText));
+          return data;
+        });
+
+        await refreshLibrary();
+        selectedCreativeId = creative.id;
+
+        if (analyse) {
+          const afd = new FormData();
+          afd.append("high_confidence", "false");
+          const data = await fetch(`/api/creatives/${creative.id}/analyze`, {
+            method: "POST",
+            body: afd,
+            credentials: "include",
+            signal: ctrl.signal,
+          }).then(async (res) => {
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(detailMsg(body, res.statusText));
+            return body;
+          });
+          result = data;
+          activeTab = "heatmap";
+          selectedRunId = data.run?.id || null;
+          await refreshLibrary();
+          await openCreative(creative.id, true);
+        } else {
+          result = null;
+          await openCreative(creative.id, true);
+        }
+        $("file").value = "";
+      } catch (err) {
+        const msg = err?.name === "AbortError"
+          ? "Timed out. Try a smaller image."
+          : (err.message || "Failed");
+        $("analyzeError").textContent = msg;
+        $("analyzeError").classList.remove("hidden");
+      } finally {
+        clearTimeout(timer);
+        busy = false;
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    }
+
+    async function reanalyze() {
+      if (!selectedCreativeId || busy) return;
+      busy = true;
+      const btn = $("reanalyzeBtn");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Analysing…';
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90000);
+      try {
+        const fd = new FormData();
+        fd.append("high_confidence", "false");
+        const data = await fetch(`/api/creatives/${selectedCreativeId}/analyze`, {
+          method: "POST",
+          body: fd,
+          credentials: "include",
+          signal: ctrl.signal,
+        }).then(async (res) => {
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(detailMsg(body, res.statusText));
+          return body;
+        });
+        result = data;
+        activeTab = "heatmap";
+        selectedRunId = data.run?.id || null;
+        await refreshLibrary();
+        await openCreative(selectedCreativeId, true);
+      } catch (err) {
+        const msg = err?.name === "AbortError"
+          ? "Timed out. Try a smaller image."
+          : (err.message || "Analysis failed");
+        $("analyzeError").textContent = msg;
+        $("analyzeError").classList.remove("hidden");
+      } finally {
+        clearTimeout(timer);
+        busy = false;
+        btn.disabled = false;
+        btn.textContent = "Re-analyse";
+      }
+    }
+
+    // Auth
     document.querySelectorAll("[data-auth]").forEach((btn) => {
       btn.addEventListener("click", () => {
         authMode = btn.dataset.auth;
@@ -222,74 +686,116 @@
     $("signoutBtn").addEventListener("click", async () => {
       await api("/api/auth/signout", { method: "POST", body: "{}" });
       result = null;
-      $("results").classList.add("hidden");
+      selectedCreativeId = null;
+      selectedProjectId = null;
+      library = { projects: [], creatives: [] };
       await refreshMe();
     });
 
-    function renderResults() {
-      if (!result) return;
-      const m = result.meta || {};
-      $("meta").innerHTML = [
-        ["Engine", m.engine || "—"],
-        ["Confidence", m.confidence != null ? `${m.confidence}` : "—"],
-        ["Clarity", m.clarity?.score != null ? `${Math.round(m.clarity.score)}` : (m.clarity ?? "—")],
-        ["Scene", m.scene_type || "—"],
-      ].map(([k,v]) => `<div class="chip"><b>${v}</b><span>${k}</span></div>`).join("");
-
-      $("tabs").innerHTML = tabs.map(([id, label]) =>
-        `<button type="button" class="tab ${id===activeTab?"active":""}" data-tab="${id}">${label}</button>`
-      ).join("");
-      $("tabs").querySelectorAll("[data-tab]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          activeTab = btn.dataset.tab;
-          renderResults();
-        });
-      });
-      const b64 = result.images?.[activeTab];
-      $("preview").src = b64 ? `data:image/png;base64,${b64}` : "";
-      $("pdfBtn").href = `/api/report.pdf?token=${encodeURIComponent(result.pdf_token)}`;
-      $("results").classList.remove("hidden");
-    }
-
-    $("uploadForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      $("analyzeError").classList.add("hidden");
-      const file = $("file").files?.[0];
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("high_confidence", "false");
-      const btn = $("analyzeBtn");
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Analysing…';
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 60000);
+    $("newProjectBtn").addEventListener("click", () => {
+      $("newProjForm").classList.add("on");
+      $("newProjName").focus();
+    });
+    $("cancelProjectBtn").addEventListener("click", () => {
+      $("newProjForm").classList.remove("on");
+      $("projError").classList.add("hidden");
+    });
+    $("createProjectBtn").addEventListener("click", async () => {
+      $("projError").classList.add("hidden");
       try {
-        const res = await fetch("/api/analyze", {
+        const name = $("newProjName").value.trim();
+        if (!name) throw new Error("Name required");
+        const proj = await api("/api/projects", {
           method: "POST",
-          body: fd,
-          credentials: "include",
-          signal: ctrl.signal,
+          body: JSON.stringify({
+            name,
+            clientName: $("newProjClient").value.trim() || null,
+          }),
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : (data.detail?.[0]?.msg || res.statusText));
-        result = data;
-        activeTab = "heatmap";
-        renderResults();
+        $("newProjName").value = "";
+        $("newProjClient").value = "";
+        $("newProjForm").classList.remove("on");
+        await refreshLibrary();
+        selectedProjectId = proj.id;
+        selectedCreativeId = null;
+        renderRail();
+        updateCrumb();
+        renderEmpty();
       } catch (err) {
-        const msg = err?.name === "AbortError"
-          ? "Analysis timed out. Try a smaller image, then retry."
-          : (err.message || "Analysis failed");
-        $("analyzeError").textContent = msg;
-        $("analyzeError").classList.remove("hidden");
-      } finally {
-        clearTimeout(timer);
-        btn.disabled = false;
-        btn.textContent = "Analyse";
+        $("projError").textContent = err.message;
+        $("projError").classList.remove("hidden");
       }
     });
 
-    // Hide empty SSO error
+    $("newFolderBtn").addEventListener("click", async () => {
+      if (!selectedProjectId) return;
+      const name = prompt("Folder name");
+      if (!name || !name.trim()) return;
+      try {
+        await api(`/api/projects/${selectedProjectId}/folders`, {
+          method: "POST",
+          body: JSON.stringify({ name: name.trim() }),
+        });
+        await refreshLibrary();
+      } catch (err) {
+        $("railError").textContent = err.message;
+        $("railError").classList.remove("hidden");
+      }
+    });
+
+    $("deleteProjectBtn").addEventListener("click", async () => {
+      if (!selectedProjectId) return;
+      const p = projectById(selectedProjectId);
+      if (!p) return;
+      if (!confirm(`Delete project “${p.name}” and all creatives?`)) return;
+      try {
+        await api(`/api/projects/${selectedProjectId}`, { method: "DELETE" });
+        selectedProjectId = null;
+        selectedCreativeId = null;
+        result = null;
+        await refreshLibrary();
+        renderEmpty();
+      } catch (err) {
+        $("railError").textContent = err.message;
+        $("railError").classList.remove("hidden");
+      }
+    });
+
+    $("deleteCreativeBtn").addEventListener("click", async () => {
+      if (!selectedCreativeId) return;
+      if (!confirm("Delete this creative and its runs?")) return;
+      try {
+        await api(`/api/creatives/${selectedCreativeId}`, { method: "DELETE" });
+        selectedCreativeId = null;
+        result = null;
+        await refreshLibrary();
+        renderEmpty();
+      } catch (err) {
+        $("analyzeError").textContent = err.message;
+        $("analyzeError").classList.remove("hidden");
+      }
+    });
+
+    $("uploadBtn").addEventListener("click", () => uploadCreative({ analyse: true }));
+    $("uploadOnlyBtn").addEventListener("click", () => uploadCreative({ analyse: false }));
+    $("reanalyzeBtn").addEventListener("click", reanalyze);
+
+    const drop = $("dropZone");
+    ["dragenter", "dragover"].forEach((ev) => {
+      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); });
+    });
+    ["dragleave", "drop"].forEach((ev) => {
+      drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); });
+    });
+    drop.addEventListener("drop", (e) => {
+      const f = e.dataTransfer?.files?.[0];
+      if (f) {
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        $("file").files = dt.files;
+      }
+    });
+
     if (!$("ssoError").textContent.trim()) $("ssoError").classList.add("hidden");
     refreshMe().catch(console.error);
   </script>
