@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   themeColor: "#0a1f4a",
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/favicon.ico?v=etscout", sizes: "any" },
+      { url: "/favicon-32.png?v=etscout", type: "image/png", sizes: "32x32" },
+      { url: "/icon-192.png?v=etscout", type: "image/png", sizes: "192x192" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/apple-touch-icon.png?v=etscout", sizes: "180x180" }],
   },
 };
 
